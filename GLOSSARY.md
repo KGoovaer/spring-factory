@@ -1,11 +1,72 @@
-# Spring Factory
+# Kettlebell Planner
 
-_One paragraph: what this application does and for whom._
+Kettlebell Planner lets a lifter visualize their kettlebell training program: what is planned, what was done, and how load and volume develop over time. This glossary covers the language of programs, sessions and sets.
 
 ## Language
 
-_Add terms as they are settled. Format:_
+### Planning
 
-**Term**:
-Definition in one sentence.
-_Avoid_: synonyms we do not use
+**Program**:
+An ordered plan of Weeks that a Lifter follows toward a goal.
+_Avoid_: Plan, Routine, Cycle
+
+**Week**:
+A numbered block of a Program that holds its planned Sessions.
+_Avoid_: Microcycle
+
+**Session**:
+One planned training day: an ordered list of Exercises with prescribed Sets.
+_Avoid_: Workout, Day
+
+**Exercise**:
+A named movement, such as a swing, goblet squat, clean and press or Turkish get-up.
+_Avoid_: Movement, Lift
+
+**Prescription**:
+What the Program asks for one Exercise in a Session: Sets, Reps, Bell weight and optionally rest.
+_Avoid_: Target, Plan
+
+### Doing
+
+**Logged Session**:
+A Session as actually performed on a date, with what the Lifter really did. Planned and logged data are never mixed.
+_Avoid_: Completed workout, History entry
+
+**Set**:
+A group of consecutive Reps of one Exercise, followed by rest.
+_Avoid_: Round
+
+**Rep**:
+One repetition of an Exercise.
+_Avoid_: Count
+
+**Bell**:
+The kettlebell used for a Set, identified by its weight in kilograms.
+_Avoid_: Weight, Kettlebell (in code)
+
+### Measuring
+
+**Volume**:
+Reps times Bell weight, summed over a scope (a Set, Session, Week or Program).
+_Avoid_: Tonnage, Load
+
+**Adherence**:
+The share of planned Sessions that have a Logged Session.
+_Avoid_: Compliance, Completion rate
+
+### People
+
+**Lifter**:
+The person who follows a Program and logs Sessions.
+_Avoid_: User, Athlete, Trainee
+
+## Relationships
+
+- A **Program** has many **Weeks**; a **Week** has many **Sessions**.
+- A **Session** has many **Prescriptions**, each for one **Exercise**.
+- A **Logged Session** refers to the **Session** it performed and holds the **Sets** actually done.
+- **Volume** and **Adherence** are always derived, never stored.
+
+## Flagged ambiguities
+
+- "Weight" means the **Bell** weight; body weight is not modelled.
