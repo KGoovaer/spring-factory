@@ -78,6 +78,17 @@ class ProgramsTest {
   }
 
   @Test
+  void aProgramsWeeksMustBeNumberedFromOneInOrder() {
+    UUID id = UUID.randomUUID();
+
+    assertThatThrownBy(() -> new Program(id, "Giant", List.of(new Week(2))))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> new Program(id, "Giant", List.of(new Week(2), new Week(1))))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThat(new Program(id, "Giant", List.of(new Week(1), new Week(2))).weeks()).hasSize(2);
+  }
+
+  @Test
   void anUnknownProgramIsNotFound() {
     UUID unknown = UUID.randomUUID();
 
