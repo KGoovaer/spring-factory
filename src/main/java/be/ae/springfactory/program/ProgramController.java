@@ -3,6 +3,7 @@ package be.ae.springfactory.program;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.UUID;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -36,6 +37,6 @@ class ProgramController {
   @PostMapping("/{id}/weeks")
   ResponseEntity<WeekResponse> addWeek(@PathVariable UUID id) {
     Week week = programs.addWeek(id);
-    return ResponseEntity.status(201).body(WeekResponse.of(week));
+    return ResponseEntity.status(HttpStatus.CREATED).body(WeekResponse.of(week));
   }
 }
