@@ -1,0 +1,25 @@
+{
+  "name": "spring-factory",
+  "private": true,
+  "description": "Spring Boot app built by a software factory. Node is only here for the Sandcastle workflows, husky and prettier.",
+  "type": "module",
+  "scripts": {
+    "check": "npm run format:check && mvn -B verify",
+    "format": "prettier --write \"**/*.md\"",
+    "format:check": "prettier --check \"**/*.md\"",
+    "prepare": "husky",
+    "test:workflows": "vitest run --dir .sandcastle"
+  },
+  "dependencies": {
+    "zod": "^3.25.36"
+  },
+  "devDependencies": {
+    "@ai-hero/sandcastle": "^0.14.0",
+    "@types/node": "^22.0.0",
+    "husky": "^9.1.7",
+    "prettier": "^3.8.1",
+    "tsx": "^4.23.13",
+    "typescript": "^5.9.3",
+    "vitest": "^5.1.0"
+  }
+}
