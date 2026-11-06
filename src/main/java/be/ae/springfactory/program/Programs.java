@@ -19,10 +19,7 @@ public class Programs {
 
   /** Creates a Program with no Weeks. The name must not be blank. */
   public Program create(String name) {
-    if (name == null || name.isBlank()) {
-      throw new BlankProgramNameException();
-    }
-    Program program = new Program(UUID.randomUUID(), name.strip(), List.of());
+    Program program = new Program(UUID.randomUUID(), name, List.of());
     programs.put(program.id(), program);
     return program;
   }

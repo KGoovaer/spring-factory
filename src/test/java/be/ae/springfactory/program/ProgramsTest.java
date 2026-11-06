@@ -89,6 +89,16 @@ class ProgramsTest {
   }
 
   @Test
+  void noProgramHasABlankName() {
+    UUID id = UUID.randomUUID();
+
+    assertThatThrownBy(() -> new Program(id, " ", List.of()))
+        .isInstanceOf(BlankProgramNameException.class);
+    assertThatThrownBy(() -> new Program(id, null, List.of()))
+        .isInstanceOf(BlankProgramNameException.class);
+  }
+
+  @Test
   void anUnknownProgramIsNotFound() {
     UUID unknown = UUID.randomUUID();
 
