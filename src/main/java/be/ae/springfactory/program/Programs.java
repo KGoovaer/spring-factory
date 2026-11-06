@@ -7,9 +7,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Component;
 
 /**
- * The Programs Lifters have created. Kept in memory and lost on restart. Ids are random UUIDs (see
- * docs/adr/0001-exercise-ids-are-uuids.md). Safe for concurrent use: two callers adding a Week to
- * the same Program never get the same Week number.
+ * The Programs Lifters have created. Kept in memory and lost on restart. Ids are random UUIDs, for
+ * the reasons docs/adr/0001-exercise-ids-are-uuids.md gives for Exercise ids; unlike seeded
+ * Exercises, a Program's id is not fixed. Safe for concurrent use: two callers adding a Week to the
+ * same Program never get the same Week number.
  */
 @Component
 public class Programs {
