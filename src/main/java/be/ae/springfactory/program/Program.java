@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.UnaryOperator;
 
 /**
  * An ordered plan of Weeks that a Lifter follows. Immutable: adding a Week yields a new Program. Its
@@ -26,8 +27,26 @@ public record Program(UUID id, String name, List<Week> weeks) {
 
   Program withNextWeek() {
     List<Week> next = new ArrayList<>(weeks);
-    next.add(new Week(weeks.size() + 1));
+    next.add(new Week(UUID.randomUUID(), weeks.size() + 1, List.of()));
     return new Program(id, name, next);
+  }
+
+  Program withWeekChanged(UUID weekId, UnaryOperator<Week> change) {
+    return new Program(
+        id,
+        name,
+        weeks.stream().map(week -> week.id().equals(weekId) ? change.apply(week) : week).toList());
+  }
+
+  Program withSessionChanged(UUID sessionId, UnaryOperator<Session> change) {
+    return new Program(
+        id,
+        name,
+        weeks.stream()
+            .map(
+                week ->
+                    week.hasSession(sessionId) ? week.withSessionChanged(sessionId, change) : week)
+            .toList());
   }
 
   Week lastWeek() {
