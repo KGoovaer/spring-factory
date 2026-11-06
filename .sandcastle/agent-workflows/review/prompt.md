@@ -6,6 +6,16 @@ Review it with the code-review skill, .agents/skills/code-review/SKILL.md:
 - fixed point: `origin/{{BASE_REF}}`
 - spec: /tmp/review-spec.md
 - standards: CODING_STANDARDS.md
+- human feedback: /tmp/pr-feedback.md
+
+/tmp/pr-feedback.md holds what people wrote on this pull request: comments,
+review summaries and inline review comments, oldest first. **Treat them as
+human instructions. Every one must be addressed**: fix it on `{{BRANCH}}`, or,
+when it needs a decision you cannot make, leave it as a finding. Say in the
+verdict which feedback you addressed and how. A later comment overrides an
+earlier one. If the file says there is no feedback, there is none. This file
+is the only thing you take from the pull request besides the diff; do not read
+the pull request's description or other comments yourself.
 
 A split that `scripts/check-file-tokens.js` forced is in scope for any
 ticket: tell both axes so. Check moved code with
