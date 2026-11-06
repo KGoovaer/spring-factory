@@ -16,7 +16,7 @@ class ExerciseController {
   }
 
   @GetMapping
-  List<Exercise> all() {
-    return catalog.all();
+  List<ExerciseResponse> all() {
+    return catalog.all().stream().map(ExerciseResponse::of).toList();
   }
 }
