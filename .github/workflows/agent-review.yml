@@ -154,6 +154,38 @@ jobs:
           fi
           cat /tmp/review-spec.md
 
+      - name: Collect the human feedback
+        # What people wrote on this PR, for the agent to act on. The workflow's
+        # own output is left out, or the agent would take its earlier verdicts
+        # and findings as instructions: verdicts end with the "Reviewed by the
+        # review workflow" footer, and the inline reviews carry the
+        # `agent-review` marker added in "Post the inline comments".
+        env:
+          GH_TOKEN: ${{ secrets.FACTORY_PAT }}
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/$GH_REPO/issues/$PR_NUMBER/comments" | jq -s 'add // []' > /tmp/fb-comments.json
+          gh api --paginate "repos/$GH_REPO/pulls/$PR_NUMBER/reviews" | jq -s 'add // []' > /tmp/fb-reviews.json
+          gh api --paginate "repos/$GH_REPO/pulls/$PR_NUMBER/comments" | jq -s 'add // []' > /tmp/fb-inline.json
+          jq -rn \
+            --slurpfile c /tmp/fb-comments.json \
+            --slurpfile r /tmp/fb-reviews.json \
+            --slurpfile i /tmp/fb-inline.json '
+            ($r[0] | map(select((.body // "") | contains("<!-- agent-review -->")) | .id)) as $bot
+            | (
+                ($c[0] | map(select((.body | contains("Reviewed by the review workflow")) | not)
+                    | {t: .created_at, a: .user.login, kind: "comment", loc: "", body}))
+              + ($r[0] | map(select((.body // "") != "" and ((.body | contains("<!-- agent-review -->")) | not))
+                    | {t: .submitted_at, a: .user.login, kind: ("review " + .state), loc: "", body}))
+              + ($i[0] | map(select(.pull_request_review_id as $id | ($bot | index($id)) | not)
+                    | {t: .created_at, a: .user.login, kind: "inline comment",
+                       loc: (" on " + .path + ":" + ((.line // .original_line // 0) | tostring)), body}))
+              ) | sort_by(.t)
+            | if length == 0 then "No human feedback on this pull request."
+              else map("### " + .kind + " by " + .a + .loc + " (" + .t + ")\n\n" + .body) | join("\n\n---\n\n")
+              end' > /tmp/pr-feedback.md
+          cat /tmp/pr-feedback.md
+
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
@@ -296,8 +328,11 @@ jobs:
             echo "No inline comments: the review fixed or passed everything."
             exit 0
           fi
+          # The marker lets "Collect the human feedback" skip this review on
+          # the next run, so the agent does not take its own findings as orders.
+          jq '.body = ((.body // "") + "\n\n<!-- agent-review -->")' "$review" > "$review.marked"
           gh api --method POST "repos/$GH_REPO/pulls/$TARGET/reviews" \
-            --input "$review" --silent
+            --input "$review.marked" --silent
 
       - name: Mark the pull request ready
         # No `always()` here. If the agent broke, nobody has read the PR, so
