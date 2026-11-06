@@ -3,6 +3,7 @@ package be.ae.springfactory.program;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -63,14 +64,20 @@ class ProgramEndpointTest {
 
   @Test
   void rejectsABlankName() throws Exception {
-    mvc.perform(createProgram("{\"name\":\"  \"}")).andExpect(status().isBadRequest());
-    mvc.perform(createProgram("{}")).andExpect(status().isBadRequest());
+    mvc.perform(createProgram("{\"name\":\"  \"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON));
+    mvc.perform(createProgram("{}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON));
   }
 
   @Test
   void anUnknownProgramIsNotFound() throws Exception {
     UUID unknown = UUID.randomUUID();
-    mvc.perform(get("/api/programs/{id}", unknown)).andExpect(status().isNotFound());
+    mvc.perform(get("/api/programs/{id}", unknown))
+        .andExpect(status().isNotFound())
+        .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON));
     mvc.perform(post("/api/programs/{id}/weeks", unknown)).andExpect(status().isNotFound());
   }
 

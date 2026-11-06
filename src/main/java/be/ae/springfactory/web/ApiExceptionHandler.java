@@ -6,10 +6,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
-/** Maps domain exceptions to HTTP responses, so controllers keep one success path. */
+/**
+ * Maps domain exceptions to HTTP responses, so controllers keep one success path. Extends Spring's
+ * handler so a request that fails validation gets the same ProblemDetail body as a domain failure.
+ */
 @RestControllerAdvice
-class ApiExceptionHandler {
+class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
   @ExceptionHandler(ProgramNotFoundException.class)
   ProblemDetail programNotFound(ProgramNotFoundException e) {
