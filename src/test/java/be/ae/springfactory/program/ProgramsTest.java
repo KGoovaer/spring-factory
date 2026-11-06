@@ -33,8 +33,9 @@ class ProgramsTest {
 
   @Test
   void aProgramNeedsANonBlankName() {
-    assertThatThrownBy(() -> programs.create("  ")).isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(() -> programs.create(null)).isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> programs.create("  ")).isInstanceOf(BlankProgramNameException.class);
+    assertThatThrownBy(() -> programs.create(null))
+        .isInstanceOf(BlankProgramNameException.class);
   }
 
   @Test

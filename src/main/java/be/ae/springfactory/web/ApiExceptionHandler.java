@@ -1,5 +1,6 @@
 package be.ae.springfactory.web;
 
+import be.ae.springfactory.program.BlankProgramNameException;
 import be.ae.springfactory.program.ProgramNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -13,5 +14,10 @@ class ApiExceptionHandler {
   @ExceptionHandler(ProgramNotFoundException.class)
   ProblemDetail programNotFound(ProgramNotFoundException e) {
     return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
+  }
+
+  @ExceptionHandler(BlankProgramNameException.class)
+  ProblemDetail blankProgramName(BlankProgramNameException e) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
   }
 }
