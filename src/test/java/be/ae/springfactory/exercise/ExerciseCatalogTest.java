@@ -29,8 +29,10 @@ class ExerciseCatalogTest {
 
   @Test
   void callersCannotChangeTheCatalog() {
+    List<Exercise> before = List.copyOf(catalog.all());
+
     assertThatThrownBy(() -> catalog.all().add(new Exercise("press", "Press")))
         .isInstanceOf(UnsupportedOperationException.class);
-    assertThat(catalog.all()).hasSize(5);
+    assertThat(catalog.all()).isEqualTo(before);
   }
 }
