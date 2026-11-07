@@ -12,10 +12,13 @@ record LoggedSessionResponse(UUID sessionId, LocalDate date, List<SetResponse> s
     return new LoggedSessionResponse(
         logged.sessionId(),
         logged.date(),
-        logged.sets().stream()
-            .map(set -> new SetResponse(set.exerciseId(), set.reps(), set.bellKg()))
-            .toList());
+        logged.sets().stream().map(SetResponse::of).toList());
   }
 
-  record SetResponse(UUID exerciseId, int reps, BigDecimal bellKg) {}
+  record SetResponse(UUID exerciseId, int reps, BigDecimal bellKg) {
+
+    static SetResponse of(LoggedSet set) {
+      return new SetResponse(set.exerciseId(), set.reps(), set.bellKg());
+    }
+  }
 }
