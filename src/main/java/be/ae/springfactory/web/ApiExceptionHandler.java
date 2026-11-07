@@ -1,6 +1,9 @@
 package be.ae.springfactory.web;
 
 import be.ae.springfactory.exercise.ExerciseNotFoundException;
+import be.ae.springfactory.log.InvalidLoggedSessionException;
+import be.ae.springfactory.log.LoggedSessionNotFoundException;
+import be.ae.springfactory.log.SessionAlreadyLoggedException;
 import be.ae.springfactory.program.BlankProgramNameException;
 import be.ae.springfactory.program.InvalidPrescriptionException;
 import be.ae.springfactory.program.ProgramNotFoundException;
@@ -23,14 +26,24 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     ProgramNotFoundException.class,
     WeekNotFoundException.class,
     SessionNotFoundException.class,
-    ExerciseNotFoundException.class
+    ExerciseNotFoundException.class,
+    LoggedSessionNotFoundException.class
   })
   ProblemDetail notFound(RuntimeException e) {
     return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
   }
 
-  @ExceptionHandler({BlankProgramNameException.class, InvalidPrescriptionException.class})
+  @ExceptionHandler({
+    BlankProgramNameException.class,
+    InvalidPrescriptionException.class,
+    InvalidLoggedSessionException.class
+  })
   ProblemDetail badRequest(RuntimeException e) {
     return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+  }
+
+  @ExceptionHandler(SessionAlreadyLoggedException.class)
+  ProblemDetail conflict(RuntimeException e) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
   }
 }

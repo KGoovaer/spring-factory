@@ -44,6 +44,16 @@ public class Programs {
     return program;
   }
 
+  /** The Session with its Prescriptions. Throws {@link SessionNotFoundException} for an unknown id. */
+  public Session session(UUID id) {
+    UUID programId = programOfSession.get(id);
+    Program program = programId == null ? null : programs.get(programId);
+    if (program == null) {
+      throw new SessionNotFoundException(id);
+    }
+    return program.session(id).orElseThrow(() -> new SessionNotFoundException(id));
+  }
+
   /** Appends the next Week to the Program, numbered one higher than the last, and returns it. */
   public Week addWeek(UUID id) {
     Program updated = programs.computeIfPresent(id, (key, program) -> program.withNextWeek());
