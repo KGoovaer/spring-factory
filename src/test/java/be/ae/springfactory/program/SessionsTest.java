@@ -20,6 +20,7 @@ class SessionsTest {
   private static final UUID SWING = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c01");
   private static final UUID GET_UP = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c04");
   private static final UUID PUSH_UP = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c06");
+  private static final UUID PLANK = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c07");
 
   private final Programs programs = new Programs(new ExerciseCatalog());
 
@@ -139,6 +140,26 @@ class SessionsTest {
   }
 
   @Test
+  void aPlankIsPrescribedWithAHoldTimeAndOnlyAPlankHasOne() {
+    Session session = programs.addSession(programs.addWeek(programs.create("P").id()).id());
+    Prescription planks = new Prescription(PLANK, 3, 1, 60, null, 30);
+
+    assertThatThrownBy(
+            () -> programs.addPrescription(session.id(), new Prescription(PLANK, 3, 1, null, null)))
+        .isInstanceOf(InvalidPrescriptionException.class)
+        .hasMessage("Plank is a hold and needs a hold time");
+    assertThatThrownBy(
+            () ->
+                programs.addPrescription(
+                    session.id(), new Prescription(PUSH_UP, 3, 20, 60, null, null)))
+        .isInstanceOf(InvalidPrescriptionException.class)
+        .hasMessage("Push-up is not a hold and takes no hold time, was 60 s");
+    assertThat(programs.addPrescription(session.id(), planks)).isEqualTo(planks);
+    assertThat(programs.session(session.id()).prescriptions()).containsExactly(planks);
+    assertThat(planks.volume()).isZero();
+  }
+
+  @Test
   void aPrescriptionKeepsItsLimits() {
     BigDecimal kg = new BigDecimal("16");
 
@@ -150,6 +171,9 @@ class SessionsTest {
         .isInstanceOf(InvalidPrescriptionException.class);
     assertThatThrownBy(() -> new Prescription(SWING, 1, 1, kg, -1))
         .isInstanceOf(InvalidPrescriptionException.class);
+    assertThatThrownBy(() -> new Prescription(PLANK, 1, 1, 0, null, null))
+        .isInstanceOf(InvalidPrescriptionException.class)
+        .hasMessage("Hold time must be at least 1 s, was 0");
     assertThatThrownBy(() -> new Prescription(null, 1, 1, kg, null))
         .isInstanceOf(InvalidPrescriptionException.class);
     assertThat(new Prescription(SWING, 1, 1, kg, 0).restSeconds()).isZero();

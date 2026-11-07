@@ -20,7 +20,7 @@ public class ExerciseCatalog {
           exercise("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c04", "Turkish get-up"),
           exercise("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c05", "Snatch"),
           bodyweight("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c06", "Push-up"),
-          bodyweight("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c07", "Plank"),
+          bodyweightHold("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c07", "Plank"),
           bodyweight("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c08", "Sit-up"));
 
   /** All Exercises, in catalog order. The returned list is unmodifiable. */
@@ -37,10 +37,14 @@ public class ExerciseCatalog {
   }
 
   private static Exercise exercise(String id, String name) {
-    return new Exercise(UUID.fromString(id), name, false);
+    return new Exercise(UUID.fromString(id), name, false, false);
   }
 
   private static Exercise bodyweight(String id, String name) {
-    return new Exercise(UUID.fromString(id), name, true);
+    return new Exercise(UUID.fromString(id), name, true, false);
+  }
+
+  private static Exercise bodyweightHold(String id, String name) {
+    return new Exercise(UUID.fromString(id), name, true, true);
   }
 }

@@ -90,7 +90,8 @@ public class Programs {
    * Appends the Prescription to the Session and returns it. Throws {@link SessionNotFoundException}
    * for an unknown Session and {@link be.ae.springfactory.exercise.ExerciseNotFoundException} for
    * an Exercise that is not in the catalog. Throws {@link InvalidPrescriptionException} when a
-   * kettlebell Exercise has no Bell or a bodyweight Exercise has one.
+   * kettlebell Exercise has no Bell or a bodyweight Exercise has one, and when a hold Exercise has
+   * no hold time or another Exercise has one.
    */
   public Prescription addPrescription(UUID sessionId, Prescription prescription) {
     UUID programId = programOfSession.get(sessionId);
@@ -98,9 +99,12 @@ public class Programs {
       throw new SessionNotFoundException(sessionId);
     }
     Exercise exercise = exercises.get(prescription.exerciseId());
-    if (!exercise.fits(prescription.bellKg())) {
-      throw new InvalidPrescriptionException(exercise.bellMismatch(prescription.bellKg()));
-    }
+    exercise
+        .mismatch(prescription.bellKg(), prescription.holdSeconds())
+        .ifPresent(
+            reason -> {
+              throw new InvalidPrescriptionException(reason);
+            });
     update(
         programId,
         program ->

@@ -30,8 +30,16 @@ _Avoid_: Weighted Exercise
 An Exercise done without a Bell. Its Prescriptions and Sets have no Bell weight, and it is the only kind of Exercise that may have none.
 _Avoid_: Calisthenics, Unweighted
 
+**Hold Exercise**:
+An Exercise measured in Hold time rather than movement, such as the plank. Its Prescriptions and Sets always have a Hold time; no other Exercise has one.
+_Avoid_: Static Exercise, Isometric
+
+**Hold time**:
+How long each Rep of a Hold Exercise is held, in whole seconds, at least 1.
+_Avoid_: Duration
+
 **Prescription**:
-What the Program asks for one Exercise in a Session: Sets, Reps, Bell weight (none for a Bodyweight Exercise) and optionally rest.
+What the Program asks for one Exercise in a Session: Sets, Reps, Hold time (only for a Hold Exercise), Bell weight (none for a Bodyweight Exercise) and optionally rest.
 _Avoid_: Target, Plan
 
 ### Doing
@@ -45,7 +53,7 @@ A group of consecutive Reps of one Exercise, followed by rest.
 _Avoid_: Round
 
 **Rep**:
-One repetition of an Exercise.
+One repetition of an Exercise; for a Hold Exercise, one hold.
 _Avoid_: Count
 
 **Bell**:
@@ -78,4 +86,4 @@ _Avoid_: User, Athlete, Trainee
 ## Flagged ambiguities
 
 - "Weight" means the **Bell** weight; body weight is not modelled, so a **Bodyweight Exercise** has no weight and adds no **Volume**.
-- A plank is a hold, not a repetition. Until hold time is modelled, one **Rep** of a plank is one hold.
+- A plank is a hold, not a repetition: it is measured in **Hold time**, and one **Rep** of a plank is one hold. Hold time adds no **Volume**.

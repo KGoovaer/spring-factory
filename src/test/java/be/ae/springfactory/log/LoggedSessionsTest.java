@@ -147,7 +147,7 @@ class LoggedSessionsTest {
         List.of(
             new LoggedSet(SWING, 10, new BigDecimal("24")),
             new LoggedSet(SIT_UP, 20, null),
-            new LoggedSet(PLANK, 1, null));
+            new LoggedSet(PLANK, 1, 60, null));
 
     LoggedSession logged = loggedSessions.log(sessionId, DAY, sets);
 
@@ -170,6 +170,29 @@ class LoggedSessionsTest {
         .isInstanceOf(InvalidLoggedSessionException.class)
         .hasMessage("Plank is a bodyweight Exercise and takes no Bell, was 10 kg");
     assertThat(loggedSessions.find(sessionId)).isEmpty();
+  }
+
+  @Test
+  void aPlankIsLoggedWithAHoldTimeAndOnlyAPlankHasOne() {
+    UUID sessionId = newSession().id();
+
+    assertThatThrownBy(
+            () -> loggedSessions.log(sessionId, DAY, List.of(new LoggedSet(PLANK, 1, null))))
+        .isInstanceOf(InvalidLoggedSessionException.class)
+        .hasMessage("Plank is a hold and needs a hold time");
+    assertThatThrownBy(
+            () ->
+                loggedSessions.log(
+                    sessionId, DAY, List.of(new LoggedSet(SWING, 10, 30, BigDecimal.TEN))))
+        .isInstanceOf(InvalidLoggedSessionException.class)
+        .hasMessage("Swing is not a hold and takes no hold time, was 30 s");
+    assertThat(loggedSessions.find(sessionId)).isEmpty();
+
+    LoggedSession logged =
+        loggedSessions.log(sessionId, DAY, List.of(new LoggedSet(PLANK, 2, 45, null)));
+
+    assertThat(logged.sets().getFirst().holdSeconds()).isEqualTo(45);
+    assertThat(logged.volume()).isZero();
   }
 
   @Test
@@ -200,6 +223,9 @@ class LoggedSessionsTest {
         .isInstanceOf(InvalidLoggedSessionException.class);
     assertThatThrownBy(() -> new LoggedSet(SWING, 1, new BigDecimal("-4")))
         .isInstanceOf(InvalidLoggedSessionException.class);
+    assertThatThrownBy(() -> new LoggedSet(PLANK, 1, 0, null))
+        .isInstanceOf(InvalidLoggedSessionException.class)
+        .hasMessage("Hold time must be at least 1 s, was 0");
   }
 
   @Test

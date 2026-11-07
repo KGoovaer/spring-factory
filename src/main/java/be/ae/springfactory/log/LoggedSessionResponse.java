@@ -5,7 +5,10 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
-/** The JSON shape of a Logged Session: {sessionId, date, sets: [{exerciseId, reps, bellKg}]}. */
+/**
+ * The JSON shape of a Logged Session: {sessionId, date, sets: [{exerciseId, reps, holdSeconds,
+ * bellKg}]}.
+ */
 record LoggedSessionResponse(UUID sessionId, LocalDate date, List<SetResponse> sets) {
 
   static LoggedSessionResponse of(LoggedSession logged) {
@@ -15,10 +18,10 @@ record LoggedSessionResponse(UUID sessionId, LocalDate date, List<SetResponse> s
         logged.sets().stream().map(SetResponse::of).toList());
   }
 
-  record SetResponse(UUID exerciseId, int reps, BigDecimal bellKg) {
+  record SetResponse(UUID exerciseId, int reps, Integer holdSeconds, BigDecimal bellKg) {
 
     static SetResponse of(LoggedSet set) {
-      return new SetResponse(set.exerciseId(), set.reps(), set.bellKg());
+      return new SetResponse(set.exerciseId(), set.reps(), set.holdSeconds(), set.bellKg());
     }
   }
 }

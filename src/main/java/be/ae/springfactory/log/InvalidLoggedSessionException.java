@@ -1,8 +1,8 @@
 package be.ae.springfactory.log;
 
 /**
- * A Logged Session or one of its Sets broke a rule: no date, no Sets, Reps or Bell weight too low,
- * or a Bell that does not fit the Exercise.
+ * A Logged Session or one of its Sets broke a rule: no date, no Sets, Reps, hold time or Bell
+ * weight too low, or a Bell or hold time that does not fit the Exercise.
  */
 public class InvalidLoggedSessionException extends RuntimeException {
   InvalidLoggedSessionException(String message) {

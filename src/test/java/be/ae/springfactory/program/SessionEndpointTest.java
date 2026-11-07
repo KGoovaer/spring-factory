@@ -25,6 +25,7 @@ import org.springframework.test.web.servlet.ResultActions;
 class SessionEndpointTest {
 
   private static final String SWING = "8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c01";
+  private static final String PLANK = "8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c07";
   private static final String SIT_UP = "8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c08";
 
   @Autowired private MockMvc mvc;
@@ -104,7 +105,8 @@ class SessionEndpointTest {
           "{\"exerciseId\":\"%s\",\"reps\":1,\"bellKg\":16}".formatted(SWING),
           swings("\"bellKg\":0"),
           swings("\"bellKg\":-4"),
-          swings("\"bellKg\":16,\"restSeconds\":-1")
+          swings("\"bellKg\":16,\"restSeconds\":-1"),
+          swings("\"bellKg\":16,\"holdSeconds\":0")
         }) {
       mvc.perform(addPrescription(sessionId, body))
           .andExpect(status().isBadRequest())
@@ -134,6 +136,25 @@ class SessionEndpointTest {
     mvc.perform(addPrescription(sessionId, swings("\"bellKg\":null")))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.detail").value("Swing needs a Bell weight"));
+  }
+
+  @Test
+  void prescribesAPlankAsAHoldTime() throws Exception {
+    String sessionId = newSessionId();
+
+    mvc.perform(
+            addPrescription(
+                sessionId,
+                "{\"exerciseId\":\"%s\",\"sets\":3,\"reps\":1,\"holdSeconds\":60}"
+                    .formatted(PLANK)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.holdSeconds").value(60))
+        .andExpect(jsonPath("$.bellKg").value(nullValue()));
+    mvc.perform(
+            addPrescription(
+                sessionId, "{\"exerciseId\":\"%s\",\"sets\":3,\"reps\":1}".formatted(PLANK)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.detail").value("Plank is a hold and needs a hold time"));
   }
 
   private static String swings(String rest) {

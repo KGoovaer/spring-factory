@@ -27,6 +27,7 @@ class LoggedSessionEndpointTest {
   private static final String SWING = "8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c01";
   private static final String SNATCH = "8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c05";
   private static final String PUSH_UP = "8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c06";
+  private static final String PLANK = "8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c07";
 
   @Autowired private MockMvc mvc;
 
@@ -155,6 +156,31 @@ class LoggedSessionEndpointTest {
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.sets[0].exerciseId").value(PUSH_UP))
         .andExpect(jsonPath("$.sets[0].bellKg").value(nullValue()));
+  }
+
+  @Test
+  void logsAPlankAsAHoldTime() throws Exception {
+    String sessionId = newSessionId();
+
+    mvc.perform(
+            log(
+                sessionId,
+                """
+                {"date":"2026-11-07","sets":[{"exerciseId":"%s","reps":1}]}"""
+                    .formatted(PLANK)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.detail").value("Plank is a hold and needs a hold time"));
+    mvc.perform(
+            log(
+                sessionId,
+                """
+                {"date":"2026-11-07","sets":[{"exerciseId":"%s","reps":1,"holdSeconds":90}]}"""
+                    .formatted(PLANK)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.sets[0].holdSeconds").value(90))
+        .andExpect(jsonPath("$.sets[0].bellKg").value(nullValue()));
+    mvc.perform(get("/api/sessions/{id}/log", sessionId))
+        .andExpect(jsonPath("$.sets[0].holdSeconds").value(90));
   }
 
   @Test

@@ -41,10 +41,24 @@ class ExerciseCatalogTest {
     Exercise swing = catalog.get(UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c01"));
     Exercise pushUp = catalog.get(UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c06"));
 
-    assertThat(swing.fits(BigDecimal.TEN)).isTrue();
-    assertThat(swing.fits(null)).isFalse();
-    assertThat(pushUp.fits(null)).isTrue();
-    assertThat(pushUp.fits(BigDecimal.TEN)).isFalse();
+    assertThat(swing.mismatch(BigDecimal.TEN, null)).isEmpty();
+    assertThat(swing.mismatch(null, null)).contains("Swing needs a Bell weight");
+    assertThat(pushUp.mismatch(null, null)).isEmpty();
+    assertThat(pushUp.mismatch(BigDecimal.TEN, null))
+        .contains("Push-up is a bodyweight Exercise and takes no Bell, was 10 kg");
+  }
+
+  @Test
+  void onlyThePlankIsAHoldAndItNeedsAHoldTime() {
+    Exercise plank = catalog.get(UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c07"));
+    Exercise pushUp = catalog.get(UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c06"));
+
+    assertThat(catalog.all()).filteredOn(Exercise::hold).containsExactly(plank);
+    assertThat(plank.bodyweight()).isTrue();
+    assertThat(plank.mismatch(null, 60)).isEmpty();
+    assertThat(plank.mismatch(null, null)).contains("Plank is a hold and needs a hold time");
+    assertThat(pushUp.mismatch(null, 60))
+        .contains("Push-up is not a hold and takes no hold time, was 60 s");
   }
 
   @Test
@@ -61,7 +75,8 @@ class ExerciseCatalogTest {
 
   @Test
   void catalogCannotBeChangedByCallers() {
-    assertThatThrownBy(() -> catalog.all().add(new Exercise(UUID.randomUUID(), "Press", false)))
+    Exercise press = new Exercise(UUID.randomUUID(), "Press", false, false);
+    assertThatThrownBy(() -> catalog.all().add(press))
         .isInstanceOf(UnsupportedOperationException.class);
     assertThat(catalog.all()).hasSize(8);
   }
