@@ -1,7 +1,7 @@
 {
   "name": "spring-factory",
   "private": true,
-  "description": "Spring Boot app built by a software factory. Node is only here for the Sandcastle workflows, husky and prettier.",
+  "description": "Spring Boot app built by a software factory. Node runs the Sandcastle workflows, husky and prettier; the React frontend has its own package in frontend/.",
   "type": "module",
   "scripts": {
     "check": "npm run format:check && mvn -B verify",

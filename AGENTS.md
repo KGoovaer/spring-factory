@@ -2,11 +2,21 @@
 
 Run before you report a change as complete:
 
-1. `mvn -B verify` (compile, unit and integration tests)
+1. `mvn -B verify` (compile, unit and integration tests, then the frontend's
+   typecheck, lint, Vitest tests and build)
 2. `npm run check` (the above plus the markdown format check)
 
-Maven is the build tool; Java 21, Spring Boot 3. Node exists only for the
+Maven is the build tool; Java 21, Spring Boot 3. The React frontend in
+`frontend/` (TypeScript, Vite) is built by Maven in `prepare-package` into
+`target/classes/static`, so the jar serves it. Node is also used for the
 Sandcastle workflows in `.sandcastle/`, husky and prettier.
+
+Frontend commands, from `frontend/` (after `npm ci` there):
+
+- `npm run dev`: Vite dev server on 5173, proxying `/api` to Spring on 8080
+  (start that with `mvn spring-boot:run`).
+- `npm run check`: typecheck, ESLint and Vitest, without Maven.
+- `npm run test -- --watch`: Vitest in watch mode.
 
 Behaviour lives in deep modules: a package with a small public API, tested
 through that API. See [CODING_STANDARDS.md](./CODING_STANDARDS.md) and

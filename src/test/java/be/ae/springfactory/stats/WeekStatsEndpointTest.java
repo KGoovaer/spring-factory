@@ -63,6 +63,55 @@ class WeekStatsEndpointTest {
   }
 
   @Test
+  void servesTheStatsOfEveryWeekOfAProgram() throws Exception {
+    String programId = newProgramId();
+    String weekId = read(mvc.perform(post("/api/programs/{id}/weeks", programId)), "$.id");
+    String sessionId = read(mvc.perform(post("/api/weeks/{id}/sessions", weekId)), "$.id");
+    mvc.perform(
+            post("/api/sessions/{id}/prescriptions", sessionId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    "{\"exerciseId\":\"%s\",\"sets\":10,\"reps\":10,\"bellKg\":24.00}"
+                        .formatted(SWING)))
+        .andExpect(status().isCreated());
+    mvc.perform(
+            post("/api/sessions/{id}/log", sessionId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    "{\"date\":\"2026-11-07\",\"sets\":[{\"exerciseId\":\"%s\",\"reps\":50,\"bellKg\":20}]}"
+                        .formatted(SWING)))
+        .andExpect(status().isCreated());
+    String emptyWeekId = read(mvc.perform(post("/api/programs/{id}/weeks", programId)), "$.id");
+
+    String json =
+        mvc.perform(get("/api/programs/{id}/stats", programId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.programId").value(programId))
+            .andExpect(jsonPath("$.weeks[0].weekId").value(weekId))
+            .andExpect(jsonPath("$.weeks[0].number").value(1))
+            .andExpect(jsonPath("$.weeks[0].sessions[0].sessionId").value(sessionId))
+            .andExpect(jsonPath("$.weeks[0].sessions[0].logged").value(true))
+            .andExpect(jsonPath("$.weeks[1].weekId").value(emptyWeekId))
+            .andExpect(jsonPath("$.weeks[1].sessions").isEmpty())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    assertThat(json)
+        .contains(
+            "\"plannedVolume\":2400,\"loggedVolume\":1000,\"adherence\":100,\"sessions\":[{\"sessionId\":\"%s\",\"plannedVolume\":2400,\"logged\":true}]"
+                .formatted(sessionId))
+        .contains("\"adherence\":null");
+  }
+
+  @Test
+  void anUnknownProgramHasNoStats() throws Exception {
+    mvc.perform(get("/api/programs/{id}/stats", UUID.randomUUID()))
+        .andExpect(status().isNotFound())
+        .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON));
+  }
+
+  @Test
   void anEmptyWeekHasNullAdherence() throws Exception {
     String json =
         mvc.perform(get("/api/weeks/{id}/stats", newWeekId()))
@@ -85,14 +134,16 @@ class WeekStatsEndpointTest {
   }
 
   private String newWeekId() throws Exception {
-    String programId =
-        read(
-            mvc.perform(
-                post("/api/programs")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"name\":\"Giant\"}")),
-            "$.id");
-    return read(mvc.perform(post("/api/programs/{id}/weeks", programId)), "$.id");
+    return read(mvc.perform(post("/api/programs/{id}/weeks", newProgramId())), "$.id");
+  }
+
+  private String newProgramId() throws Exception {
+    return read(
+        mvc.perform(
+            post("/api/programs")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Giant\"}")),
+        "$.id");
   }
 
   private static String read(ResultActions result, String path) throws Exception {

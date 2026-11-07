@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 
 /**
  * Volume and Adherence of one Week, derived from its planned Sessions and their Logged Sessions and
- * never stored.
+ * never stored, with the {@link SessionStats} of each Session in the Week's order.
  *
  * <ul>
  *   <li>{@code plannedVolume}: Sets × Reps × Bell weight, summed over the Week's Prescriptions.
@@ -28,7 +28,16 @@ import java.util.stream.Collectors;
  * 100.00} or {@code 1E+2}).
  */
 public record WeekStats(
-    UUID weekId, BigDecimal plannedVolume, BigDecimal loggedVolume, BigDecimal adherence) {
+    UUID weekId,
+    int number,
+    BigDecimal plannedVolume,
+    BigDecimal loggedVolume,
+    BigDecimal adherence,
+    List<SessionStats> sessions) {
+
+  public WeekStats {
+    sessions = List.copyOf(sessions);
+  }
 
   private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
 
@@ -45,13 +54,25 @@ public record WeekStats(
         week.sessions().stream().map(Session::volume).reduce(BigDecimal.ZERO, BigDecimal::add);
     BigDecimal loggedVolume =
         logged.stream().map(LoggedSession::volume).reduce(BigDecimal.ZERO, BigDecimal::add);
-    long loggedSessionCount = logged.stream().map(LoggedSession::sessionId).distinct().count();
+    Set<UUID> loggedSessionIds =
+        logged.stream().map(LoggedSession::sessionId).collect(Collectors.toSet());
+    List<SessionStats> sessions =
+        week.sessions().stream()
+            .map(
+                session ->
+                    new SessionStats(
+                        session.id(),
+                        normalised(session.volume()),
+                        loggedSessionIds.contains(session.id())))
+            .toList();
 
     return new WeekStats(
         week.id(),
+        week.number(),
         normalised(plannedVolume),
         normalised(loggedVolume),
-        adherence(loggedSessionCount, sessionIds.size()));
+        adherence(loggedSessionIds.size(), sessionIds.size()),
+        sessions);
   }
 
   private static BigDecimal adherence(long logged, int planned) {
