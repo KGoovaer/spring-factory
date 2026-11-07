@@ -94,6 +94,16 @@ describe("ProgramOverviewPage", () => {
     ]);
   });
 
+  it("charts planned and logged Volume per Week", async () => {
+    serve({ "/api/programs/p1": [200, PROGRAM], "/api/programs/p1/stats": [200, STATS] });
+
+    renderPage();
+
+    const chart = await screen.findByRole("figure", { name: "Volume per Week" });
+    expect(within(chart).getByText("Planned Volume")).toBeInTheDocument();
+    expect(within(chart).getByText("Logged Volume")).toBeInTheDocument();
+  });
+
   it("marks logged Sessions apart from the others", async () => {
     serve({ "/api/programs/p1": [200, PROGRAM], "/api/programs/p1/stats": [200, STATS] });
 
@@ -131,6 +141,7 @@ describe("ProgramOverviewPage", () => {
 
     expect(await screen.findByText("This Program has no Weeks yet.")).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.queryByRole("figure")).not.toBeInTheDocument();
   });
 
   it("shows the server's reason when the Program cannot be loaded", async () => {

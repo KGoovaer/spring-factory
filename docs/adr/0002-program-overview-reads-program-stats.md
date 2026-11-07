@@ -33,5 +33,7 @@ The Week row shows both planned and logged Volume, and Adherence.
   keeps the pre-commit hook (`mvn -o test-compile`) free of Node. It costs a
   backend-only `mvn verify` about ten seconds; skip it with
   `-Dskip.installnodenpm -Dskip.npm` when iterating on Java alone.
-- No chart library yet: the page is a grid of numbers. Recharts (or another)
-  comes in with the first real chart.
+- Recharts draws the planned and logged Volume per Week above the grid, as
+  asked on the pull request. It is React components over SVG, so the chart is
+  declared like the rest of the page and needs no imperative D3 code; the grid
+  stays the table view of the same numbers.
