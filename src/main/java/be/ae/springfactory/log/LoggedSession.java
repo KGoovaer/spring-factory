@@ -1,5 +1,6 @@
 package be.ae.springfactory.log;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
@@ -25,5 +26,10 @@ public record LoggedSession(UUID sessionId, LocalDate date, List<LoggedSet> sets
       throw new InvalidLoggedSessionException("A Logged Session cannot hold a missing Set");
     }
     sets = List.copyOf(sets);
+  }
+
+  /** Logged Volume of this Logged Session: the Volume of its Sets, summed. */
+  public BigDecimal volume() {
+    return sets.stream().map(LoggedSet::volume).reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 }

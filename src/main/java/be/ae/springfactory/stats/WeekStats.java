@@ -1,8 +1,6 @@
 package be.ae.springfactory.stats;
 
 import be.ae.springfactory.log.LoggedSession;
-import be.ae.springfactory.log.LoggedSet;
-import be.ae.springfactory.program.Prescription;
 import be.ae.springfactory.program.Session;
 import be.ae.springfactory.program.Week;
 import java.math.BigDecimal;
@@ -44,15 +42,9 @@ public record WeekStats(
         loggedSessions.stream().filter(log -> sessionIds.contains(log.sessionId())).toList();
 
     BigDecimal plannedVolume =
-        week.sessions().stream()
-            .flatMap(session -> session.prescriptions().stream())
-            .map(Prescription::volume)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        week.sessions().stream().map(Session::volume).reduce(BigDecimal.ZERO, BigDecimal::add);
     BigDecimal loggedVolume =
-        logged.stream()
-            .flatMap(log -> log.sets().stream())
-            .map(LoggedSet::volume)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        logged.stream().map(LoggedSession::volume).reduce(BigDecimal.ZERO, BigDecimal::add);
     long loggedSessionCount = logged.stream().map(LoggedSession::sessionId).distinct().count();
 
     return new WeekStats(
