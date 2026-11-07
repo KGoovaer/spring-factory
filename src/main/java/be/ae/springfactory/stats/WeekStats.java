@@ -38,7 +38,7 @@ public record WeekStats(
    * Calculates the stats of the Week from these Logged Sessions. Logged Sessions of Sessions outside
    * the Week are ignored.
    */
-  public static WeekStats of(Week week, Collection<LoggedSession> loggedSessions) {
+  static WeekStats of(Week week, Collection<LoggedSession> loggedSessions) {
     Set<UUID> sessionIds = week.sessions().stream().map(Session::id).collect(Collectors.toSet());
     List<LoggedSession> logged =
         loggedSessions.stream().filter(log -> sessionIds.contains(log.sessionId())).toList();
