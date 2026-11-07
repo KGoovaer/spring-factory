@@ -3,6 +3,7 @@ package be.ae.springfactory.program;
 import be.ae.springfactory.exercise.ExerciseCatalog;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
@@ -46,22 +47,16 @@ public class Programs {
 
   /** The Session with its Prescriptions. Throws {@link SessionNotFoundException} for an unknown id. */
   public Session session(UUID id) {
-    UUID programId = programOfSession.get(id);
-    Program program = programId == null ? null : programs.get(programId);
-    if (program == null) {
-      throw new SessionNotFoundException(id);
-    }
-    return program.session(id).orElseThrow(() -> new SessionNotFoundException(id));
+    return programOf(programOfSession, id)
+        .flatMap(program -> program.session(id))
+        .orElseThrow(() -> new SessionNotFoundException(id));
   }
 
   /** The Week with its Sessions. Throws {@link WeekNotFoundException} for an unknown id. */
   public Week week(UUID id) {
-    UUID programId = programOfWeek.get(id);
-    Program program = programId == null ? null : programs.get(programId);
-    if (program == null) {
-      throw new WeekNotFoundException(id);
-    }
-    return program.week(id).orElseThrow(() -> new WeekNotFoundException(id));
+    return programOf(programOfWeek, id)
+        .flatMap(program -> program.week(id))
+        .orElseThrow(() -> new WeekNotFoundException(id));
   }
 
   /** Appends the next Week to the Program, numbered one higher than the last, and returns it. */
@@ -116,5 +111,10 @@ public class Programs {
     if (programs.computeIfPresent(programId, (key, program) -> change.apply(program)) == null) {
       throw notFound.get();
     }
+  }
+
+  /** The Program that this index says holds the Week or Session {@code id}, if any. */
+  private Optional<Program> programOf(Map<UUID, UUID> index, UUID id) {
+    return Optional.ofNullable(index.get(id)).map(programs::get);
   }
 }

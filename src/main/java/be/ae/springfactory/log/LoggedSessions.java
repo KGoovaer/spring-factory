@@ -51,12 +51,7 @@ public class LoggedSessions {
    * LoggedSessionNotFoundException} when the Session has not been logged.
    */
   public LoggedSession get(UUID sessionId) {
-    programs.session(sessionId);
-    LoggedSession logged = logs.get(sessionId);
-    if (logged == null) {
-      throw new LoggedSessionNotFoundException(sessionId);
-    }
-    return logged;
+    return find(sessionId).orElseThrow(() -> new LoggedSessionNotFoundException(sessionId));
   }
 
   /**
