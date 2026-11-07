@@ -87,3 +87,7 @@ body {
   font-weight: 600;
   margin-bottom: 0.5rem;
 }
+
+.week-volume-chart .legend-label {
+  color: #1d2329;
+}

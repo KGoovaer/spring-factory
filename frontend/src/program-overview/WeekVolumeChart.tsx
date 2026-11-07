@@ -25,44 +25,28 @@ export function WeekVolumeChart({ weeks }: { weeks: WeekRow[] }) {
     logged: week.loggedVolume,
   }));
   return (
-    <figure
-      className="week-volume-chart"
-      aria-labelledby="week-volume-chart-title"
-    >
+    <figure className="week-volume-chart" aria-labelledby="week-volume-chart-title">
       <figcaption id="week-volume-chart-title">Volume per Week</figcaption>
-      <ResponsiveContainer
-        width="100%"
-        height={260}
-        initialDimension={{ width: 600, height: 260 }}
-      >
-        <BarChart
-          data={data}
-          barGap={2}
-          margin={{ top: 8, right: 8, bottom: 0, left: 8 }}
-        >
+      <ResponsiveContainer width="100%" height={260} initialDimension={{ width: 600, height: 260 }}>
+        <BarChart data={data} barGap={2} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
           <CartesianGrid vertical={false} stroke="#e5e7eb" />
-          <XAxis
-            dataKey="week"
-            tickLine={false}
-            axisLine={{ stroke: "#9aa4b1" }}
-          />
-          <YAxis
-            tickFormatter={formatVolume}
-            tickLine={false}
-            axisLine={false}
-            width={80}
-          />
+          <XAxis dataKey="week" tickLine={false} axisLine={{ stroke: "#9aa4b1" }} />
+          <YAxis tickFormatter={formatVolume} tickLine={false} axisLine={false} width={96} />
           <Tooltip
             formatter={(value) => formatVolume(Number(value))}
             cursor={{ fill: "#eef0f3" }}
           />
-          <Legend />
+          <Legend
+            itemSorter={null}
+            formatter={(name) => <span className="legend-label">{name}</span>}
+          />
           <Bar
             dataKey="planned"
             name="Planned Volume"
             fill={PLANNED}
             radius={[4, 4, 0, 0]}
             maxBarSize={32}
+            isAnimationActive={false}
           />
           <Bar
             dataKey="logged"
@@ -70,6 +54,7 @@ export function WeekVolumeChart({ weeks }: { weeks: WeekRow[] }) {
             fill={LOGGED}
             radius={[4, 4, 0, 0]}
             maxBarSize={32}
+            isAnimationActive={false}
           />
         </BarChart>
       </ResponsiveContainer>
