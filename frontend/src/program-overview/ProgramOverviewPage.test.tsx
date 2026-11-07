@@ -106,6 +106,21 @@ describe("ProgramOverviewPage", () => {
     expect(within(notLogged).queryByText("✓ Logged")).not.toBeInTheDocument();
   });
 
+  it("shows a fractional Volume as the server sent it", async () => {
+    const week = { ...STATS.weeks[0], plannedVolume: 2573.5, adherence: 66.67 };
+    week.sessions = [{ sessionId: "s1", plannedVolume: 173.5, logged: false }];
+    serve({
+      "/api/programs/p1": [200, PROGRAM],
+      "/api/programs/p1/stats": [200, { programId: "p1", weeks: [week] }],
+    });
+
+    renderPage();
+
+    const row = await screen.findByRole("row", { name: "Week 1" });
+    const cells = within(row).getAllByRole("cell").map((cell) => cell.textContent);
+    expect(cells).toEqual(["173.5 kgNot logged", "2,573.5 kg", "2,400 kg", "66.67%"]);
+  });
+
   it("says so when the Program has no Weeks", async () => {
     serve({
       "/api/programs/p1": [200, PROGRAM],
