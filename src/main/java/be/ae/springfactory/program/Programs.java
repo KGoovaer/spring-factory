@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 import org.springframework.stereotype.Component;
 
 /**
@@ -60,13 +62,10 @@ public class Programs {
       throw new WeekNotFoundException(weekId);
     }
     Session session = new Session(UUID.randomUUID(), List.of());
-    Program updated =
-        programs.computeIfPresent(
-            programId,
-            (key, program) -> program.withWeekChanged(weekId, week -> week.withSession(session)));
-    if (updated == null) {
-      throw new WeekNotFoundException(weekId);
-    }
+    update(
+        programId,
+        program -> program.withWeekChanged(weekId, week -> week.withSession(session)),
+        () -> new WeekNotFoundException(weekId));
     programOfSession.put(session.id(), programId);
     return session;
   }
@@ -82,15 +81,20 @@ public class Programs {
       throw new SessionNotFoundException(sessionId);
     }
     exercises.get(prescription.exerciseId());
-    Program updated =
-        programs.computeIfPresent(
-            programId,
-            (key, program) ->
-                program.withSessionChanged(
-                    sessionId, session -> session.withPrescription(prescription)));
-    if (updated == null) {
-      throw new SessionNotFoundException(sessionId);
-    }
+    update(
+        programId,
+        program ->
+            program.withSessionChanged(
+                sessionId, session -> session.withPrescription(prescription)),
+        () -> new SessionNotFoundException(sessionId));
     return prescription;
+  }
+
+  /** Replaces the Program atomically with the changed one, or throws when it has gone. */
+  private void update(
+      UUID programId, UnaryOperator<Program> change, Supplier<RuntimeException> notFound) {
+    if (programs.computeIfPresent(programId, (key, program) -> change.apply(program)) == null) {
+      throw notFound.get();
+    }
   }
 }
