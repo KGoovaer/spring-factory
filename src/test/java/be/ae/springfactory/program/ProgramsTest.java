@@ -3,6 +3,7 @@ package be.ae.springfactory.program;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import be.ae.springfactory.exercise.ExerciseCatalog;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -14,7 +15,7 @@ import org.junit.jupiter.api.Test;
 
 class ProgramsTest {
 
-  private final Programs programs = new Programs();
+  private final Programs programs = new Programs(new ExerciseCatalog());
 
   @Test
   void aNewProgramHasItsNameAndNoWeeks() {
@@ -42,11 +43,11 @@ class ProgramsTest {
   void weeksAreNumberedFromOneInTheOrderTheyAreAdded() {
     UUID id = programs.create("Giant").id();
 
-    assertThat(programs.addWeek(id)).isEqualTo(new Week(1));
-    assertThat(programs.addWeek(id)).isEqualTo(new Week(2));
-    assertThat(programs.addWeek(id)).isEqualTo(new Week(3));
+    assertThat(programs.addWeek(id).number()).isEqualTo(1);
+    assertThat(programs.addWeek(id).number()).isEqualTo(2);
+    assertThat(programs.addWeek(id).number()).isEqualTo(3);
 
-    assertThat(programs.get(id).weeks()).containsExactly(new Week(1), new Week(2), new Week(3));
+    assertThat(programs.get(id).weeks()).extracting(Week::number).containsExactly(1, 2, 3);
   }
 
   @Test
@@ -56,7 +57,7 @@ class ProgramsTest {
     programs.addWeek(first);
     programs.addWeek(first);
 
-    assertThat(programs.addWeek(second)).isEqualTo(new Week(1));
+    assertThat(programs.addWeek(second).number()).isEqualTo(1);
   }
 
   @Test
@@ -73,7 +74,7 @@ class ProgramsTest {
   void callersCannotChangeTheWeeksOfAProgram() {
     Program program = programs.create("Giant");
 
-    assertThatThrownBy(() -> program.weeks().add(new Week(1)))
+    assertThatThrownBy(() -> program.weeks().add(week(1)))
         .isInstanceOf(UnsupportedOperationException.class);
   }
 
@@ -81,11 +82,11 @@ class ProgramsTest {
   void aProgramsWeeksMustBeNumberedFromOneInOrder() {
     UUID id = UUID.randomUUID();
 
-    assertThatThrownBy(() -> new Program(id, "Giant", List.of(new Week(2))))
+    assertThatThrownBy(() -> new Program(id, "Giant", List.of(week(2))))
         .isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(() -> new Program(id, "Giant", List.of(new Week(2), new Week(1))))
+    assertThatThrownBy(() -> new Program(id, "Giant", List.of(week(2), week(1))))
         .isInstanceOf(IllegalArgumentException.class);
-    assertThat(new Program(id, "Giant", List.of(new Week(1), new Week(2))).weeks()).hasSize(2);
+    assertThat(new Program(id, "Giant", List.of(week(1), week(2))).weeks()).hasSize(2);
   }
 
   @Test
@@ -125,6 +126,10 @@ class ProgramsTest {
     assertThat(programs.get(id).weeks())
         .extracting(Week::number)
         .containsExactlyElementsOf(IntStream.rangeClosed(1, count).boxed().toList());
+  }
+
+  private static Week week(int number) {
+    return new Week(UUID.randomUUID(), number, List.of());
   }
 
   private static Week await(Future<Week> future) {

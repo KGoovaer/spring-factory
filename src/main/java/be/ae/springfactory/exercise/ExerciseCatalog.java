@@ -24,6 +24,14 @@ public class ExerciseCatalog {
     return EXERCISES;
   }
 
+  /** The Exercise with this id. Throws {@link ExerciseNotFoundException} when there is none. */
+  public Exercise get(UUID id) {
+    return EXERCISES.stream()
+        .filter(exercise -> exercise.id().equals(id))
+        .findFirst()
+        .orElseThrow(() -> new ExerciseNotFoundException(id));
+  }
+
   private static Exercise exercise(String id, String name) {
     return new Exercise(UUID.fromString(id), name);
   }

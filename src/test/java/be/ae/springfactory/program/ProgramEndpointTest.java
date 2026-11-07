@@ -59,7 +59,9 @@ class ProgramEndpointTest {
         .andExpect(jsonPath("$.weeks.length()").value(2))
         .andExpect(jsonPath("$.weeks[0].number").value(1))
         .andExpect(jsonPath("$.weeks[1].number").value(2))
-        .andExpect(jsonPath("$.weeks[0].length()").value(1));
+        .andExpect(jsonPath("$.weeks[0].id").isString())
+        .andExpect(jsonPath("$.weeks[0].sessions.length()").value(0))
+        .andExpect(jsonPath("$.weeks[0].length()").value(3));
   }
 
   @Test
