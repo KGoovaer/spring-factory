@@ -5,6 +5,7 @@ import be.ae.springfactory.program.Programs;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Component;
@@ -50,11 +51,15 @@ public class LoggedSessions {
    * LoggedSessionNotFoundException} when the Session has not been logged.
    */
   public LoggedSession get(UUID sessionId) {
+    return find(sessionId).orElseThrow(() -> new LoggedSessionNotFoundException(sessionId));
+  }
+
+  /**
+   * The Logged Session of this Session, or empty when the Session has not been logged. Throws {@link
+   * be.ae.springfactory.program.SessionNotFoundException} for an unknown Session.
+   */
+  public Optional<LoggedSession> find(UUID sessionId) {
     programs.session(sessionId);
-    LoggedSession logged = logs.get(sessionId);
-    if (logged == null) {
-      throw new LoggedSessionNotFoundException(sessionId);
-    }
-    return logged;
+    return Optional.ofNullable(logs.get(sessionId));
   }
 }

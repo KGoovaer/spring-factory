@@ -28,4 +28,9 @@ public record Prescription(
       throw new InvalidPrescriptionException("Rest must not be negative, was " + restSeconds);
     }
   }
+
+  /** Volume of this Prescription: Sets × Reps × Bell weight. */
+  public BigDecimal volume() {
+    return bellKg.multiply(BigDecimal.valueOf((long) sets * reps));
+  }
 }

@@ -1,5 +1,6 @@
 package be.ae.springfactory.program;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -14,6 +15,13 @@ public record Session(UUID id, List<Prescription> prescriptions) {
   public Session {
     Objects.requireNonNull(id, "id");
     prescriptions = List.copyOf(prescriptions);
+  }
+
+  /** Planned Volume of this Session: the Volume of its Prescriptions, summed. */
+  public BigDecimal volume() {
+    return prescriptions.stream()
+        .map(Prescription::volume)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
   Session withPrescription(Prescription prescription) {
