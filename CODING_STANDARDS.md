@@ -32,3 +32,19 @@ directly. Prefer real objects and Testcontainers over mocks of your own code;
 mock only at system boundaries.
 
 ## Money is an integer or BigDecimal, never a double
+
+## Frontend
+
+The React app in `frontend/` follows the same rules in TypeScript:
+
+- Behaviour sits in a feature folder with a small entry point
+  (`program-overview/programOverview.ts` loads; components render). Pages hold
+  no domain rules: Volume and Adherence come from the API, never computed in the
+  browser.
+- The API client throws `ApiError` on any non-2xx answer. No error-shaped return
+  values; a page catches once and shows an error state.
+- Every page that loads data has a loading and an error state.
+- Component tests use React Testing Library through what the user sees (roles,
+  text). Stub `fetch` at the network boundary, not your own modules.
+- Use the glossary's words in the UI and in code: Program, Week, Session,
+  Volume, Adherence, Logged Session.
