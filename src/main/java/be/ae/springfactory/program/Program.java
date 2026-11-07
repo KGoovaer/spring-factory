@@ -42,11 +42,7 @@ public record Program(UUID id, String name, List<Week> weeks) {
     return new Program(
         id,
         name,
-        weeks.stream()
-            .map(
-                week ->
-                    week.hasSession(sessionId) ? week.withSessionChanged(sessionId, change) : week)
-            .toList());
+        weeks.stream().map(week -> week.withSessionChanged(sessionId, change)).toList());
   }
 
   Week lastWeek() {

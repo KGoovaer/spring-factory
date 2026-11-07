@@ -26,10 +26,6 @@ public record Week(UUID id, int number, List<Session> sessions) {
     return new Week(id, number, next);
   }
 
-  boolean hasSession(UUID sessionId) {
-    return sessions.stream().anyMatch(session -> session.id().equals(sessionId));
-  }
-
   Week withSessionChanged(UUID sessionId, UnaryOperator<Session> change) {
     return new Week(
         id,
