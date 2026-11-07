@@ -7,8 +7,10 @@ import jakarta.validation.constraints.PositiveOrZero;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-/** The body of POST /api/sessions/{id}/prescriptions. bellKg is left out (or null) for a
- * bodyweight Exercise; restSeconds may be left out. */
+/**
+ * The body of POST /api/sessions/{id}/prescriptions. bellKg is left out (or null) for a bodyweight
+ * Exercise; restSeconds may be left out.
+ */
 record AddPrescriptionRequest(
     @NotNull UUID exerciseId,
     @NotNull @Min(1) Integer sets,
