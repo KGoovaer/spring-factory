@@ -19,8 +19,12 @@ One planned training day: an ordered list of Exercises with prescribed Sets.
 _Avoid_: Workout, Day
 
 **Exercise**:
-A named movement, such as a swing, goblet squat, clean and press or Turkish get-up. Most Exercises are kettlebell Exercises, done with a Bell; a few, such as the push-up, plank and sit-up, are bodyweight Exercises, done without one.
+A named movement, such as a swing, goblet squat, clean and press or Turkish get-up. Most Exercises are Kettlebell Exercises, done with a Bell; a few, such as the push-up, plank and sit-up, are Bodyweight Exercises, done without one.
 _Avoid_: Movement, Lift
+
+**Kettlebell Exercise**:
+An Exercise done with a Bell. Its Prescriptions and Sets always have a Bell weight above 0.
+_Avoid_: Weighted Exercise
 
 **Bodyweight Exercise**:
 An Exercise done without a Bell. Its Prescriptions and Sets have no Bell weight, and it is the only kind of Exercise that may have none.
