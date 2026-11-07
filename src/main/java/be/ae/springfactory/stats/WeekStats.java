@@ -43,33 +43,23 @@ public record WeekStats(
     List<LoggedSession> logged =
         loggedSessions.stream().filter(log -> sessionIds.contains(log.sessionId())).toList();
 
-    BigDecimal planned =
+    BigDecimal plannedVolume =
         week.sessions().stream()
             .flatMap(session -> session.prescriptions().stream())
-            .map(WeekStats::volume)
+            .map(Prescription::volume)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
-    BigDecimal done =
+    BigDecimal loggedVolume =
         logged.stream()
             .flatMap(log -> log.sets().stream())
-            .map(WeekStats::volume)
+            .map(LoggedSet::volume)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
     long loggedSessionCount = logged.stream().map(LoggedSession::sessionId).distinct().count();
 
     return new WeekStats(
         week.id(),
-        normalised(planned),
-        normalised(done),
+        normalised(plannedVolume),
+        normalised(loggedVolume),
         adherence(loggedSessionCount, sessionIds.size()));
-  }
-
-  private static BigDecimal volume(Prescription prescription) {
-    return prescription
-        .bellKg()
-        .multiply(BigDecimal.valueOf((long) prescription.sets() * prescription.reps()));
-  }
-
-  private static BigDecimal volume(LoggedSet set) {
-    return set.bellKg().multiply(BigDecimal.valueOf(set.reps()));
   }
 
   private static BigDecimal adherence(long logged, int planned) {

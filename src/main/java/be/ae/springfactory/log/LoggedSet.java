@@ -20,4 +20,9 @@ public record LoggedSet(UUID exerciseId, int reps, BigDecimal bellKg) {
       throw new InvalidLoggedSessionException("Bell weight must be above 0 kg, was " + bellKg);
     }
   }
+
+  /** Volume of this Set: Reps × Bell weight. */
+  public BigDecimal volume() {
+    return bellKg.multiply(BigDecimal.valueOf(reps));
+  }
 }
