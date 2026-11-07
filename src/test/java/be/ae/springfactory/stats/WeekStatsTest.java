@@ -110,6 +110,24 @@ class WeekStatsTest {
     assertThat(stats.adherence()).hasToString("0");
   }
 
+  @Test
+  void eachSessionHasItsPlannedVolumeAndWhetherItWasLogged() {
+    Session logged = session(prescription(SWING, 10, 10, "24.00"));
+    Session open = session(prescription(SWING, 3, 5, "10.50"), prescription(SNATCH, 1, 1, "16"));
+
+    WeekStats stats =
+        WeekStats.of(week(logged, open), List.of(logged(logged, set(SWING, 1, "16"))));
+
+    assertThat(stats.number()).isEqualTo(1);
+    assertThat(stats.sessions()).hasSize(2);
+    assertThat(stats.sessions().get(0).sessionId()).isEqualTo(logged.id());
+    assertThat(stats.sessions().get(0).plannedVolume()).hasToString("2400");
+    assertThat(stats.sessions().get(0).logged()).isTrue();
+    assertThat(stats.sessions().get(1).sessionId()).isEqualTo(open.id());
+    assertThat(stats.sessions().get(1).plannedVolume()).hasToString("173.5");
+    assertThat(stats.sessions().get(1).logged()).isFalse();
+  }
+
   private static Week week(Session... sessions) {
     return new Week(UUID.randomUUID(), 1, List.of(sessions));
   }

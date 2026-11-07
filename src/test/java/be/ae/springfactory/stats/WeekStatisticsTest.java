@@ -2,11 +2,13 @@ package be.ae.springfactory.stats;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 import be.ae.springfactory.exercise.ExerciseCatalog;
 import be.ae.springfactory.log.LoggedSessions;
 import be.ae.springfactory.log.LoggedSet;
 import be.ae.springfactory.program.Prescription;
+import be.ae.springfactory.program.ProgramNotFoundException;
 import be.ae.springfactory.program.Programs;
 import be.ae.springfactory.program.WeekNotFoundException;
 import java.math.BigDecimal;
@@ -45,6 +47,45 @@ class WeekStatisticsTest {
     assertThat(stats.loggedVolume()).hasToString("1200");
     assertThat(stats.adherence()).hasToString("50");
     assertThat(statistics.of(otherWeek).adherence()).hasToString("0");
+  }
+
+  @Test
+  void readsEveryWeekOfAProgramWithItsSessions() {
+    UUID programId = programs.create("Giant").id();
+    UUID first = programs.addWeek(programId).id();
+    UUID logged = programs.addSession(first).id();
+    UUID skipped = programs.addSession(first).id();
+    programs.addPrescription(logged, new Prescription(SWING, 10, 10, new BigDecimal("24"), null));
+    programs.addPrescription(skipped, new Prescription(SWING, 5, 10, new BigDecimal("24"), null));
+    loggedSessions.log(
+        logged, LocalDate.of(2026, 11, 7), List.of(new LoggedSet(SWING, 50, new BigDecimal("24"))));
+    UUID second = programs.addWeek(programId).id();
+
+    ProgramStats stats = statistics.ofProgram(programId);
+
+    assertThat(stats.programId()).isEqualTo(programId);
+    assertThat(stats.weeks()).extracting(WeekStats::weekId).containsExactly(first, second);
+    assertThat(stats.weeks()).extracting(WeekStats::number).containsExactly(1, 2);
+    WeekStats week = stats.weeks().getFirst();
+    assertThat(week.adherence()).hasToString("50");
+    assertThat(week.sessions())
+        .extracting(
+            SessionStats::sessionId, s -> s.plannedVolume().toPlainString(), SessionStats::logged)
+        .containsExactly(tuple(logged, "2400", true), tuple(skipped, "1200", false));
+    assertThat(stats.weeks().get(1).sessions()).isEmpty();
+  }
+
+  @Test
+  void aProgramWithoutWeeksHasNoWeekStats() {
+    UUID programId = programs.create("Giant").id();
+
+    assertThat(statistics.ofProgram(programId).weeks()).isEmpty();
+  }
+
+  @Test
+  void anUnknownProgramIsNotFound() {
+    assertThatThrownBy(() -> statistics.ofProgram(UUID.randomUUID()))
+        .isInstanceOf(ProgramNotFoundException.class);
   }
 
   @Test
