@@ -3,6 +3,7 @@ package be.ae.springfactory.program;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.UnaryOperator;
 
@@ -43,6 +44,13 @@ public record Program(UUID id, String name, List<Week> weeks) {
         id,
         name,
         weeks.stream().map(week -> week.withSessionChanged(sessionId, change)).toList());
+  }
+
+  Optional<Session> session(UUID sessionId) {
+    return weeks.stream()
+        .flatMap(week -> week.sessions().stream())
+        .filter(session -> session.id().equals(sessionId))
+        .findFirst();
   }
 
   Week lastWeek() {

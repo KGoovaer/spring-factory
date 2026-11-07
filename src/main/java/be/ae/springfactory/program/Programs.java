@@ -51,11 +51,7 @@ public class Programs {
     if (program == null) {
       throw new SessionNotFoundException(id);
     }
-    return program.weeks().stream()
-        .flatMap(week -> week.sessions().stream())
-        .filter(session -> session.id().equals(id))
-        .findFirst()
-        .orElseThrow(() -> new SessionNotFoundException(id));
+    return program.session(id).orElseThrow(() -> new SessionNotFoundException(id));
   }
 
   /** Appends the next Week to the Program, numbered one higher than the last, and returns it. */
