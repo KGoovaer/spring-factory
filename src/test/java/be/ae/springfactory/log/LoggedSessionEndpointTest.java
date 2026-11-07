@@ -173,6 +173,20 @@ class LoggedSessionEndpointTest {
   }
 
   @Test
+  void rejectsAKettlebellSetWithoutABell() throws Exception {
+    String sessionId = newSessionId();
+
+    mvc.perform(
+            log(
+                sessionId,
+                "{\"date\":\"2026-11-07\",\"sets\":[{\"exerciseId\":\"%s\",\"reps\":10}]}"
+                    .formatted(SWING)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.detail").value("Swing needs a Bell weight"));
+    mvc.perform(get("/api/sessions/{id}/log", sessionId)).andExpect(status().isNotFound());
+  }
+
+  @Test
   void acceptsAFutureDate() throws Exception {
     mvc.perform(
             log(
