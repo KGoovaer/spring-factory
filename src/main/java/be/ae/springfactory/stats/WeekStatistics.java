@@ -12,8 +12,8 @@ import java.util.UUID;
 import org.springframework.stereotype.Component;
 
 /**
- * Derives {@link WeekStats} for a Week, or for every Week of a Program, from what {@link Programs} plans and {@link LoggedSessions}
- * records. Reads both, changes neither.
+ * Derives {@link WeekStats} for a Week, or for every Week of a Program, from what {@link Programs}
+ * plans and {@link LoggedSessions} records. Reads both, changes neither.
  */
 @Component
 public class WeekStatistics {

@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 @Controller
 class SinglePageAppController {
 
-  @GetMapping({"/programs/{id}"})
+  @GetMapping("/programs/{id}")
   String index() {
     return "forward:/index.html";
   }
