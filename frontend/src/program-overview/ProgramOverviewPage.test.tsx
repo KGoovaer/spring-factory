@@ -99,10 +99,11 @@ describe("ProgramOverviewPage", () => {
 
     renderPage();
 
-    const sessions = await screen.findAllByTestId("session");
-    expect(sessions.map((session) => session.dataset.logged)).toEqual(["true", "false"]);
-    expect(sessions[0]).toHaveClass("logged");
-    expect(sessions[1]).not.toHaveClass("logged");
+    const week1 = await screen.findByRole("row", { name: "Week 1" });
+    const [logged, notLogged] = within(week1).getAllByRole("cell");
+    expect(within(logged).getByText("✓ Logged")).toBeInTheDocument();
+    expect(within(notLogged).getByText("Not logged")).toBeInTheDocument();
+    expect(within(notLogged).queryByText("✓ Logged")).not.toBeInTheDocument();
   });
 
   it("says so when the Program has no Weeks", async () => {

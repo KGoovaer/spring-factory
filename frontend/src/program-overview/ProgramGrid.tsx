@@ -54,11 +54,7 @@ function WeekRowView({ week, sessionColumns }: { week: WeekRow; sessionColumns: 
 
 function SessionCellView({ session }: { session: SessionCell }) {
   return (
-    <div
-      className={session.logged ? "session logged" : "session"}
-      data-testid="session"
-      data-logged={session.logged}
-    >
+    <div className={session.logged ? "session logged" : "session"}>
       <span className="volume">{formatVolume(session.plannedVolume)}</span>
       <span className="state">{session.logged ? "✓ Logged" : "Not logged"}</span>
     </div>
