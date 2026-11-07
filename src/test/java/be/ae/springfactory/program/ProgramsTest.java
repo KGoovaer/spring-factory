@@ -109,6 +109,21 @@ class ProgramsTest {
   }
 
   @Test
+  void aWeekIsFoundByItsIdWithItsSessions() {
+    UUID programId = programs.create("Giant").id();
+    programs.addWeek(programId);
+    Week second = programs.addWeek(programId);
+    Session session = programs.addSession(second.id());
+
+    Week found = programs.week(second.id());
+
+    assertThat(found.number()).isEqualTo(2);
+    assertThat(found.sessions()).containsExactly(session);
+    assertThatThrownBy(() -> programs.week(UUID.randomUUID()))
+        .isInstanceOf(WeekNotFoundException.class);
+  }
+
+  @Test
   void concurrentlyAddedWeeksNeverShareANumber() throws Exception {
     UUID id = programs.create("Busy").id();
     int count = 200;

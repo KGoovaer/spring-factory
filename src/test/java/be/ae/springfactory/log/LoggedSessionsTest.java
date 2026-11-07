@@ -50,6 +50,19 @@ class LoggedSessionsTest {
   }
 
   @Test
+  void findingALogOfAnUnloggedSessionGivesNothingInsteadOfThrowing() {
+    UUID sessionId = newSession().id();
+
+    assertThat(loggedSessions.find(sessionId)).isEmpty();
+
+    LoggedSession logged =
+        loggedSessions.log(sessionId, DAY, List.of(new LoggedSet(SWING, 10, new BigDecimal("24"))));
+    assertThat(loggedSessions.find(sessionId)).contains(logged);
+    assertThatThrownBy(() -> loggedSessions.find(UUID.randomUUID()))
+        .isInstanceOf(SessionNotFoundException.class);
+  }
+
+  @Test
   void loggingLeavesThePlannedSessionAsItWas() {
     Session session = newSession();
     Prescription swings = new Prescription(SWING, 10, 10, new BigDecimal("24"), 60);

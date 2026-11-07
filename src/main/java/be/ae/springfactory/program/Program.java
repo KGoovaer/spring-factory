@@ -46,6 +46,10 @@ public record Program(UUID id, String name, List<Week> weeks) {
         weeks.stream().map(week -> week.withSessionChanged(sessionId, change)).toList());
   }
 
+  Optional<Week> week(UUID weekId) {
+    return weeks.stream().filter(week -> week.id().equals(weekId)).findFirst();
+  }
+
   Optional<Session> session(UUID sessionId) {
     return weeks.stream()
         .flatMap(week -> week.sessions().stream())
