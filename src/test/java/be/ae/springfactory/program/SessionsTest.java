@@ -78,6 +78,19 @@ class SessionsTest {
   }
 
   @Test
+  void aSessionCanBeLookedUpByItsId() {
+    UUID weekId = programs.addWeek(programs.create("P").id()).id();
+    Session session = programs.addSession(weekId);
+    programs.addSession(weekId);
+    Prescription swings = new Prescription(SWING, 1, 1, BigDecimal.ONE, null);
+    programs.addPrescription(session.id(), swings);
+
+    assertThat(programs.session(session.id()).prescriptions()).containsExactly(swings);
+    assertThatThrownBy(() -> programs.session(UUID.randomUUID()))
+        .isInstanceOf(SessionNotFoundException.class);
+  }
+
+  @Test
   void anUnknownWeekOrSessionIsNotFound() {
     Prescription swings = new Prescription(SWING, 1, 1, BigDecimal.ONE, null);
 
