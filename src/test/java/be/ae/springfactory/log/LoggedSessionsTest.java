@@ -27,6 +27,8 @@ class LoggedSessionsTest {
 
   private static final UUID SWING = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c01");
   private static final UUID SNATCH = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c05");
+  private static final UUID PLANK = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c07");
+  private static final UUID SIT_UP = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c08");
   private static final LocalDate DAY = LocalDate.of(2026, 11, 7);
 
   private final ExerciseCatalog catalog = new ExerciseCatalog();
@@ -139,6 +141,38 @@ class LoggedSessionsTest {
   }
 
   @Test
+  void bodyweightSetsAreLoggedWithoutABellAndAddNoVolume() {
+    UUID sessionId = newSession().id();
+    List<LoggedSet> sets =
+        List.of(
+            new LoggedSet(SWING, 10, new BigDecimal("24")),
+            new LoggedSet(SIT_UP, 20, null),
+            new LoggedSet(PLANK, 1, null));
+
+    LoggedSession logged = loggedSessions.log(sessionId, DAY, sets);
+
+    assertThat(loggedSessions.get(sessionId).sets()).isEqualTo(sets);
+    assertThat(logged.sets().get(1).volume()).isZero();
+    assertThat(logged.volume()).isEqualByComparingTo("240");
+  }
+
+  @Test
+  void aSetWhoseBellDoesNotFitTheExerciseIsRejectedAndNothingIsStored() {
+    UUID sessionId = newSession().id();
+
+    assertThatThrownBy(
+            () -> loggedSessions.log(sessionId, DAY, List.of(new LoggedSet(SWING, 10, null))))
+        .isInstanceOf(InvalidLoggedSessionException.class)
+        .hasMessage("Swing needs a Bell weight");
+    List<LoggedSet> plankWithBell =
+        List.of(new LoggedSet(SWING, 10, BigDecimal.TEN), new LoggedSet(PLANK, 1, BigDecimal.TEN));
+    assertThatThrownBy(() -> loggedSessions.log(sessionId, DAY, plankWithBell))
+        .isInstanceOf(InvalidLoggedSessionException.class)
+        .hasMessage("Plank is a bodyweight Exercise and takes no Bell, was 10 kg");
+    assertThat(loggedSessions.find(sessionId)).isEmpty();
+  }
+
+  @Test
   void aLoggedSessionNeedsADateAndAtLeastOneSet() {
     UUID sessionId = newSession().id();
     List<LoggedSet> withNull = new ArrayList<>();
@@ -165,8 +199,6 @@ class LoggedSessionsTest {
     assertThatThrownBy(() -> new LoggedSet(SWING, 1, BigDecimal.ZERO))
         .isInstanceOf(InvalidLoggedSessionException.class);
     assertThatThrownBy(() -> new LoggedSet(SWING, 1, new BigDecimal("-4")))
-        .isInstanceOf(InvalidLoggedSessionException.class);
-    assertThatThrownBy(() -> new LoggedSet(SWING, 1, null))
         .isInstanceOf(InvalidLoggedSessionException.class);
   }
 

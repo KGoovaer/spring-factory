@@ -1,6 +1,7 @@
 package be.ae.springfactory.log;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -25,6 +26,7 @@ class LoggedSessionEndpointTest {
 
   private static final String SWING = "8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c01";
   private static final String SNATCH = "8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c05";
+  private static final String PUSH_UP = "8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c06";
 
   @Autowired private MockMvc mvc;
 
@@ -140,6 +142,33 @@ class LoggedSessionEndpointTest {
           .andExpect(status().isBadRequest())
           .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON));
     }
+    mvc.perform(get("/api/sessions/{id}/log", sessionId)).andExpect(status().isNotFound());
+  }
+
+  @Test
+  void logsABodyweightSetWithoutABellAndAnswersWithANullBell() throws Exception {
+    mvc.perform(
+            log(
+                newSessionId(),
+                "{\"date\":\"2026-11-07\",\"sets\":[{\"exerciseId\":\"%s\",\"reps\":20}]}"
+                    .formatted(PUSH_UP)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.sets[0].exerciseId").value(PUSH_UP))
+        .andExpect(jsonPath("$.sets[0].bellKg").value(nullValue()));
+  }
+
+  @Test
+  void rejectsABellOnABodyweightSet() throws Exception {
+    String sessionId = newSessionId();
+
+    mvc.perform(
+            log(
+                sessionId,
+                """
+                {"date":"2026-11-07","sets":[{"exerciseId":"%s","reps":20,"bellKg":8}]}"""
+                    .formatted(PUSH_UP)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.detail").value(startsWith("Push-up is a bodyweight Exercise")));
     mvc.perform(get("/api/sessions/{id}/log", sessionId)).andExpect(status().isNotFound());
   }
 

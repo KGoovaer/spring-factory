@@ -1,6 +1,7 @@
 package be.ae.springfactory.program;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -24,6 +25,7 @@ import org.springframework.test.web.servlet.ResultActions;
 class SessionEndpointTest {
 
   private static final String SWING = "8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c01";
+  private static final String SIT_UP = "8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c08";
 
   @Autowired private MockMvc mvc;
 
@@ -110,6 +112,28 @@ class SessionEndpointTest {
     }
     mvc.perform(addPrescription(sessionId, swings("\"bellKg\":16,\"restSeconds\":0")))
         .andExpect(status().isCreated());
+  }
+
+  @Test
+  void prescribesABodyweightExerciseWithoutABell() throws Exception {
+    String sessionId = newSessionId();
+
+    mvc.perform(
+            addPrescription(
+                sessionId, "{\"exerciseId\":\"%s\",\"sets\":3,\"reps\":25}".formatted(SIT_UP)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.exerciseId").value(SIT_UP))
+        .andExpect(jsonPath("$.bellKg").value(nullValue()));
+    mvc.perform(
+            addPrescription(
+                sessionId,
+                "{\"exerciseId\":\"%s\",\"sets\":3,\"reps\":25,\"bellKg\":12}"
+                    .formatted(SIT_UP)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.detail").value(startsWith("Sit-up is a bodyweight Exercise")));
+    mvc.perform(addPrescription(sessionId, swings("\"bellKg\":null")))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.detail").value("Swing needs a Bell weight"));
   }
 
   private static String swings(String rest) {

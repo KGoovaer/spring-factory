@@ -18,6 +18,7 @@ class WeekStatsTest {
 
   private static final UUID SWING = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c01");
   private static final UUID SNATCH = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c05");
+  private static final UUID PUSH_UP = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c06");
   private static final LocalDate DAY = LocalDate.of(2026, 11, 7);
 
   @Test
@@ -60,6 +61,21 @@ class WeekStatsTest {
     WeekStats stats = WeekStats.of(week(session), List.of(log));
 
     assertThat(stats.loggedVolume().toPlainString()).isEqualTo("600");
+  }
+
+  @Test
+  void bodyweightSetsAddNoVolumeButTheirSessionsCountForAdherence() {
+    Session kettlebell = session(prescription(SWING, 10, 10, "24"));
+    Session bodyweight = session(new Prescription(PUSH_UP, 5, 20, null, null));
+    LoggedSession log = logged(bodyweight, new LoggedSet(PUSH_UP, 20, null), set(SWING, 10, "16"));
+
+    WeekStats stats = WeekStats.of(week(kettlebell, bodyweight), List.of(log));
+
+    assertThat(stats.plannedVolume().toPlainString()).isEqualTo("2400");
+    assertThat(stats.loggedVolume().toPlainString()).isEqualTo("160");
+    assertThat(stats.adherence().toPlainString()).isEqualTo("50");
+    assertThat(stats.sessions().get(1).plannedVolume().toPlainString()).isEqualTo("0");
+    assertThat(stats.sessions().get(1).logged()).isTrue();
   }
 
   @Test

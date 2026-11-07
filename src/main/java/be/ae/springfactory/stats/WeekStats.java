@@ -16,9 +16,10 @@ import java.util.stream.Collectors;
  * never stored, with the {@link SessionStats} of each Session in the Week's order.
  *
  * <ul>
- *   <li>{@code plannedVolume}: Sets × Reps × Bell weight, summed over the Week's Prescriptions.
+ *   <li>{@code plannedVolume}: Sets × Reps × Bell weight, summed over the Week's Prescriptions; a
+ *       Prescription without a Bell adds 0.
  *   <li>{@code loggedVolume}: Reps × Bell weight, summed over every logged Set of the Week's
- *       Sessions, including Exercises the Session did not prescribe.
+ *       Sessions, including Exercises the Session did not prescribe; a Set without a Bell adds 0.
  *   <li>{@code adherence}: the percentage of the Week's Sessions that have a Logged Session, rounded
  *       half up to 2 decimals ({@code 66.67}); {@code null} for a Week without Sessions. A Logged
  *       Session counts whatever its date.

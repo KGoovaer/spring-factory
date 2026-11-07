@@ -19,11 +19,15 @@ One planned training day: an ordered list of Exercises with prescribed Sets.
 _Avoid_: Workout, Day
 
 **Exercise**:
-A named movement, such as a swing, goblet squat, clean and press or Turkish get-up.
+A named movement, such as a swing, goblet squat, clean and press or Turkish get-up. Most Exercises are kettlebell Exercises, done with a Bell; a few, such as the push-up, plank and sit-up, are bodyweight Exercises, done without one.
 _Avoid_: Movement, Lift
 
+**Bodyweight Exercise**:
+An Exercise done without a Bell. Its Prescriptions and Sets have no Bell weight, and it is the only kind of Exercise that may have none.
+_Avoid_: Calisthenics, Unweighted
+
 **Prescription**:
-What the Program asks for one Exercise in a Session: Sets, Reps, Bell weight and optionally rest.
+What the Program asks for one Exercise in a Session: Sets, Reps, Bell weight (none for a Bodyweight Exercise) and optionally rest.
 _Avoid_: Target, Plan
 
 ### Doing
@@ -47,7 +51,7 @@ _Avoid_: Weight, Kettlebell (in code)
 ### Measuring
 
 **Volume**:
-Reps times Bell weight, summed over a scope (a Set, Session, Week or Program).
+Reps times Bell weight, summed over a scope (a Set, Session, Week or Program). A Set without a Bell adds 0.
 _Avoid_: Tonnage, Load
 
 **Adherence**:
@@ -69,4 +73,5 @@ _Avoid_: User, Athlete, Trainee
 
 ## Flagged ambiguities
 
-- "Weight" means the **Bell** weight; body weight is not modelled.
+- "Weight" means the **Bell** weight; body weight is not modelled, so a **Bodyweight Exercise** has no weight and adds no **Volume**.
+- A plank is a hold, not a repetition. Until hold time is modelled, one **Rep** of a plank is one hold.

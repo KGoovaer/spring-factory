@@ -1,5 +1,6 @@
 package be.ae.springfactory.log;
 
+import be.ae.springfactory.exercise.Exercise;
 import be.ae.springfactory.exercise.ExerciseCatalog;
 import be.ae.springfactory.program.Programs;
 import java.time.LocalDate;
@@ -32,13 +33,19 @@ public class LoggedSessions {
    * The Exercises need not be the prescribed ones, but each must be in the catalog. Throws {@link
    * be.ae.springfactory.program.SessionNotFoundException} for an unknown Session, {@link
    * be.ae.springfactory.exercise.ExerciseNotFoundException} for an unknown Exercise, {@link
-   * InvalidLoggedSessionException} for a missing date or no Sets, and {@link
+   * InvalidLoggedSessionException} for a missing date, no Sets, a kettlebell Exercise without a
+   * Bell or a bodyweight Exercise with one, and {@link
    * SessionAlreadyLoggedException} when the Session has a Logged Session already.
    */
   public LoggedSession log(UUID sessionId, LocalDate date, List<LoggedSet> sets) {
     programs.session(sessionId);
     LoggedSession logged = new LoggedSession(sessionId, date, sets);
-    logged.sets().forEach(set -> exercises.get(set.exerciseId()));
+    for (LoggedSet set : logged.sets()) {
+      Exercise exercise = exercises.get(set.exerciseId());
+      if (!exercise.fits(set.bellKg())) {
+        throw new InvalidLoggedSessionException(exercise.bellMismatch(set.bellKg()));
+      }
+    }
     if (logs.putIfAbsent(sessionId, logged) != null) {
       throw new SessionAlreadyLoggedException(sessionId);
     }
