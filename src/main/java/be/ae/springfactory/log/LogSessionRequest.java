@@ -10,7 +10,11 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
-/** The body of POST /api/sessions/{id}/log: {date, sets: [{exerciseId, reps, bellKg}]}. */
+/**
+ * The body of POST /api/sessions/{id}/log: {date, sets: [{exerciseId, reps, holdSeconds,
+ * bellKg}]}. bellKg is left out (or null) for a bodyweight Exercise; holdSeconds is given only for
+ * a hold Exercise.
+ */
 record LogSessionRequest(@NotNull LocalDate date, @NotEmpty List<@NotNull @Valid SetRequest> sets) {
 
   List<LoggedSet> toLoggedSets() {
@@ -18,10 +22,13 @@ record LogSessionRequest(@NotNull LocalDate date, @NotEmpty List<@NotNull @Valid
   }
 
   record SetRequest(
-      @NotNull UUID exerciseId, @NotNull @Min(1) Integer reps, @NotNull @Positive BigDecimal bellKg) {
+      @NotNull UUID exerciseId,
+      @NotNull @Min(1) Integer reps,
+      @Min(1) Integer holdSeconds,
+      @Positive BigDecimal bellKg) {
 
     LoggedSet toLoggedSet() {
-      return new LoggedSet(exerciseId, reps, bellKg);
+      return new LoggedSet(exerciseId, reps, holdSeconds, bellKg);
     }
   }
 }

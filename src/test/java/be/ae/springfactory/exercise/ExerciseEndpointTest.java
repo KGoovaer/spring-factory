@@ -19,14 +19,20 @@ class ExerciseEndpointTest {
   @Autowired private MockMvc mvc;
 
   @Test
-  void listsExercisesAsABareJsonArrayOfIdAndName() throws Exception {
+  void listsExercisesAsABareJsonArrayOfIdNameBodyweightAndHold() throws Exception {
     mvc.perform(get("/api/exercises"))
         .andExpect(status().isOk())
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.length()").value(5))
+        .andExpect(jsonPath("$.length()").value(8))
         .andExpect(jsonPath("$[0].id").value("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c01"))
         .andExpect(jsonPath("$[0].name").value("Swing"))
         .andExpect(jsonPath("$[4].name").value("Snatch"))
-        .andExpect(jsonPath("$[0].length()").value(2));
+        .andExpect(jsonPath("$[0].bodyweight").value(false))
+        .andExpect(jsonPath("$[5].name").value("Push-up"))
+        .andExpect(jsonPath("$[5].bodyweight").value(true))
+        .andExpect(jsonPath("$[0].hold").value(false))
+        .andExpect(jsonPath("$[6].name").value("Plank"))
+        .andExpect(jsonPath("$[6].hold").value(true))
+        .andExpect(jsonPath("$[0].length()").value(4));
   }
 }

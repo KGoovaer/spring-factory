@@ -1,5 +1,6 @@
 package be.ae.springfactory.program;
 
+import be.ae.springfactory.exercise.Exercise;
 import be.ae.springfactory.exercise.ExerciseCatalog;
 import java.util.List;
 import java.util.Map;
@@ -88,14 +89,22 @@ public class Programs {
   /**
    * Appends the Prescription to the Session and returns it. Throws {@link SessionNotFoundException}
    * for an unknown Session and {@link be.ae.springfactory.exercise.ExerciseNotFoundException} for
-   * an Exercise that is not in the catalog.
+   * an Exercise that is not in the catalog. Throws {@link InvalidPrescriptionException} when a
+   * kettlebell Exercise has no Bell or a bodyweight Exercise has one, and when a hold Exercise has
+   * no hold time or another Exercise has one.
    */
   public Prescription addPrescription(UUID sessionId, Prescription prescription) {
     UUID programId = programOfSession.get(sessionId);
     if (programId == null) {
       throw new SessionNotFoundException(sessionId);
     }
-    exercises.get(prescription.exerciseId());
+    Exercise exercise = exercises.get(prescription.exerciseId());
+    exercise
+        .mismatch(prescription.bellKg(), prescription.holdSeconds())
+        .ifPresent(
+            reason -> {
+              throw new InvalidPrescriptionException(reason);
+            });
     update(
         programId,
         program ->
