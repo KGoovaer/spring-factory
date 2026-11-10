@@ -69,8 +69,8 @@ interface LoggedSessionResponse {
  * Loads a Session of a Program for logging: the Program, the Exercise catalog
  * and the Logged Session, if any. A logged Session starts from its logged
  * Sets, so the Lifter corrects what was saved; otherwise every planned Set
- * becomes a row. Throws ApiError when a call fails or the Program has no such
- * Session.
+ * becomes a row. Throws ApiError when a call fails, and an Error when the
+ * Program has no such Session.
  */
 export async function loadSessionToLog(programId: string, sessionId: string): Promise<SessionToLog> {
   const [program, exercises, logged] = await Promise.all([
@@ -168,5 +168,5 @@ function findSession(program: ProgramResponse, sessionId: string) {
       };
     }
   }
-  throw new ApiError(404, `${program.name} has no Session ${sessionId}`);
+  throw new Error(`${program.name} has no Session ${sessionId}`);
 }
