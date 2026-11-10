@@ -9,6 +9,7 @@ import be.ae.springfactory.program.Prescription;
 import be.ae.springfactory.program.Programs;
 import be.ae.springfactory.program.Session;
 import be.ae.springfactory.program.SessionNotFoundException;
+import be.ae.springfactory.program.Side;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -49,6 +50,19 @@ class LoggedSessionsTest {
     assertThat(loggedSessions.get(sessionId)).isEqualTo(logged);
     assertThat(loggedSessions.get(sessionId).sets().get(1).bellKg().toPlainString())
         .isEqualTo("10.50");
+  }
+
+  @Test
+  void aSetOnEachSideCountsItsRepsTwiceInVolume() {
+    LoggedSession logged =
+        loggedSessions.log(
+            newSession().id(),
+            DAY,
+            List.of(
+                new LoggedSet(SWING, 8, Side.EACH, null, null, new BigDecimal("16")),
+                new LoggedSet(SWING, 8, Side.LEFT, null, null, new BigDecimal("16"))));
+
+    assertThat(logged.volume()).isEqualByComparingTo("384");
   }
 
   @Test

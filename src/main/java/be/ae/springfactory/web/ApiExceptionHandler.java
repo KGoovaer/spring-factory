@@ -1,11 +1,15 @@
 package be.ae.springfactory.web;
 
+import be.ae.springfactory.exercise.ExerciseNameTakenException;
 import be.ae.springfactory.exercise.ExerciseNotFoundException;
+import be.ae.springfactory.exercise.InvalidExerciseException;
 import be.ae.springfactory.log.InvalidLoggedSessionException;
 import be.ae.springfactory.log.LoggedSessionNotFoundException;
 import be.ae.springfactory.log.SessionAlreadyLoggedException;
 import be.ae.springfactory.program.BlankProgramNameException;
+import be.ae.springfactory.program.InvalidPartException;
 import be.ae.springfactory.program.InvalidPrescriptionException;
+import be.ae.springfactory.program.PartNotFoundException;
 import be.ae.springfactory.program.ProgramNotFoundException;
 import be.ae.springfactory.program.SessionNotFoundException;
 import be.ae.springfactory.program.WeekNotFoundException;
@@ -27,7 +31,8 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     WeekNotFoundException.class,
     SessionNotFoundException.class,
     ExerciseNotFoundException.class,
-    LoggedSessionNotFoundException.class
+    LoggedSessionNotFoundException.class,
+    PartNotFoundException.class
   })
   ProblemDetail notFound(RuntimeException e) {
     return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
@@ -36,13 +41,15 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
   @ExceptionHandler({
     BlankProgramNameException.class,
     InvalidPrescriptionException.class,
-    InvalidLoggedSessionException.class
+    InvalidLoggedSessionException.class,
+    InvalidPartException.class,
+    InvalidExerciseException.class
   })
   ProblemDetail badRequest(RuntimeException e) {
     return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
   }
 
-  @ExceptionHandler(SessionAlreadyLoggedException.class)
+  @ExceptionHandler({SessionAlreadyLoggedException.class, ExerciseNameTakenException.class})
   ProblemDetail conflict(RuntimeException e) {
     return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
   }

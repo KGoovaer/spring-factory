@@ -7,26 +7,60 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * One planned training day in a Week: its Prescriptions in the order they were added. Its id is a
- * random UUID, so a Logged Session can refer to it. Immutable: adding a Prescription yields a new
- * Session.
+ * One planned training day in a Week: its Parts in order, and the Lifter's notes for it (free text
+ * such as intensity, warm-up and scale-down options, or {@code null}). Its id is a random UUID, so
+ * a Logged Session can refer to it. Immutable: adding a Part or Prescription yields a new Session.
  */
-public record Session(UUID id, List<Prescription> prescriptions) {
+public record Session(UUID id, String notes, List<Part> parts) {
   public Session {
     Objects.requireNonNull(id, "id");
-    prescriptions = List.copyOf(prescriptions);
+    notes = notes == null || notes.isBlank() ? null : notes.strip();
+    parts = List.copyOf(parts);
   }
 
-  /** Planned Volume of this Session: the Volume of its Prescriptions, summed. */
+  /** A Session without notes whose Prescriptions, if any, form one Part of straight Sets. */
+  public Session(UUID id, List<Prescription> prescriptions) {
+    this(id, null, prescriptions.isEmpty() ? List.of() : List.of(setsOf(prescriptions)));
+  }
+
+  /** All Prescriptions of all Parts, in order. */
+  public List<Prescription> prescriptions() {
+    return parts.stream().flatMap(part -> part.prescriptions().stream()).toList();
+  }
+
+  /** Planned Volume of this Session: the Volume of its Parts, summed. */
   public BigDecimal volume() {
-    return prescriptions.stream()
-        .map(Prescription::volume)
-        .reduce(BigDecimal.ZERO, BigDecimal::add);
+    return parts.stream().map(Part::volume).reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
+  Session withPart(Part part) {
+    List<Part> next = new ArrayList<>(parts);
+    next.add(part);
+    return new Session(id, notes, next);
+  }
+
+  /** Adds the Prescription to Part {@code number} (from 1). */
+  Session withPrescription(int number, Prescription prescription) {
+    if (number < 1 || number > parts.size()) {
+      throw new PartNotFoundException(id, number);
+    }
+    List<Part> next = new ArrayList<>(parts);
+    next.set(number - 1, parts.get(number - 1).withPrescription(prescription));
+    return new Session(id, notes, next);
+  }
+
+  /** Adds the Prescription to the last Part when it is one of straight Sets, else to a new one. */
   Session withPrescription(Prescription prescription) {
-    List<Prescription> next = new ArrayList<>(prescriptions);
-    next.add(prescription);
-    return new Session(id, next);
+    Session session =
+        parts.isEmpty() || parts.getLast().format() != PartFormat.SETS ? withPart(Part.sets()) : this;
+    return session.withPrescription(session.parts().size(), prescription);
+  }
+
+  Session withNotes(String notes) {
+    return new Session(id, notes, parts);
+  }
+
+  private static Part setsOf(List<Prescription> prescriptions) {
+    return new Part(PartFormat.SETS, null, null, null, null, prescriptions);
   }
 }

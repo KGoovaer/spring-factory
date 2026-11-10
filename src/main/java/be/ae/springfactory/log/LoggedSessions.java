@@ -36,7 +36,7 @@ public class LoggedSessions {
    * be.ae.springfactory.exercise.ExerciseNotFoundException} for an unknown Exercise, {@link
    * InvalidLoggedSessionException} for a missing date, no Sets, a kettlebell Exercise without a
    * Bell, a bodyweight Exercise with one, a hold Exercise without a hold time or another Exercise
-   * with one, and {@link
+   * with one, a timed Exercise without a work time or another Exercise with one, and {@link
    * SessionAlreadyLoggedException} when the Session has a Logged Session already.
    */
   public LoggedSession log(UUID sessionId, LocalDate date, List<LoggedSet> sets) {
@@ -72,7 +72,7 @@ public class LoggedSessions {
     for (LoggedSet set : logged.sets()) {
       Exercise exercise = exercises.get(set.exerciseId());
       exercise
-          .mismatch(set.bellKg(), set.holdSeconds())
+          .mismatch(set.bellKg(), set.holdSeconds(), set.workSeconds())
           .ifPresent(
               reason -> {
                 throw new InvalidLoggedSessionException(reason);
