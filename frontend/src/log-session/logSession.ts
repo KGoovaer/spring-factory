@@ -1,5 +1,6 @@
 import { ApiError, getJson, sendJson } from "../api/client";
 import type { PartResponse, PrescriptionResponse, ProgramResponse, Side } from "../api/programs";
+import { partTitle } from "../api/programs";
 
 /** An Exercise as the form needs it: whether its Sets take a Bell, a Hold time or a Work time. */
 export interface ExerciseInfo {
@@ -180,28 +181,22 @@ function plannedPart(part: PartResponse, exercise: (id: string) => ExerciseInfo)
         place,
       },
     }));
-  const title = `Part ${part.number} · `;
+  const title = partTitle(part);
   switch (part.format) {
     case "SETS":
+      return { title, rows: part.prescriptions.flatMap((p) => sets(p, null)) };
+    case "ROUNDS":
       return {
-        title: `${title}Sets`,
-        rows: part.prescriptions.flatMap((p) => sets(p, null)),
-      };
-    case "ROUNDS": {
-      const rounds = part.rounds ?? 1;
-      return {
-        title: `${title}${rounds} Rounds`,
-        rows: Array.from({ length: rounds }, (_, round) =>
+        title,
+        rows: Array.from({ length: part.rounds ?? 1 }, (_, round) =>
           part.prescriptions.flatMap((p) => sets(p, `Round ${round + 1}`)),
         ).flat(),
       };
-    }
     case "EMOM": {
-      const minutes = part.minutes ?? 1;
       const rotation = part.rotation ?? 1;
       return {
-        title: `${title}${minutes} min EMOM`,
-        rows: Array.from({ length: minutes }, (_, index): RowToLog[] => {
+        title,
+        rows: Array.from({ length: part.minutes ?? 1 }, (_, index): RowToLog[] => {
           const place = `Minute ${index + 1}`;
           const inMinute = part.prescriptions.filter((p) => p.minute === (index % rotation) + 1);
           return inMinute.length === 0
@@ -212,7 +207,7 @@ function plannedPart(part: PartResponse, exercise: (id: string) => ExerciseInfo)
     }
     case "REST":
       return {
-        title: `${title}Rest`,
+        title,
         rows: [{ kind: "rest", seconds: part.restSeconds ?? 0, place: null }],
       };
   }

@@ -2,7 +2,6 @@ import { getJson, sendJson } from "../api/client";
 import type {
   ExerciseResponse,
   PartFormat,
-  PartResponse,
   PrescriptionResponse,
   ProgramResponse,
   Side,
@@ -97,21 +96,6 @@ export async function changeNotes(sessionId: string, notes: string): Promise<voi
 /** Adds the Exercise to the catalog. Throws ApiError when the name is taken. */
 export async function addExercise(exercise: NewExercise): Promise<void> {
   await sendJson("POST", "/api/exercises", exercise);
-}
-
-/** How a Part is titled: "Part 1 · 20 min EMOM", "Part 2 · Rest 60 s", "Part 3 · 3 Rounds". */
-export function partTitle(part: PartResponse): string {
-  const title = `Part ${part.number} · `;
-  switch (part.format) {
-    case "SETS":
-      return `${title}Sets`;
-    case "ROUNDS":
-      return `${title}${part.rounds} Rounds`;
-    case "EMOM":
-      return `${title}${part.minutes} min EMOM, rotating through ${part.rotation} minutes`;
-    case "REST":
-      return `${title}Rest ${part.restSeconds} s`;
-  }
 }
 
 /**

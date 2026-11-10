@@ -7,12 +7,12 @@ import type {
   SessionResponse,
   Side,
 } from "../api/programs";
+import { partTitle } from "../api/programs";
 import {
   addPart,
   addPrescription,
   changeNotes,
   describePrescription,
-  partTitle,
   type NewPart,
 } from "./programSetup";
 import { useSubmit } from "./useSubmit";

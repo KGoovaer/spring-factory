@@ -507,7 +507,7 @@ describe("LogSessionPage", () => {
     expect(screen.getByRole("region", { name: "Notes" })).toHaveTextContent(
       "Keep intensity at 70-80%.",
     );
-    const emom = screen.getByRole("rowgroup", { name: "Part 1 · 20 min EMOM" });
+    const emom = screen.getByRole("rowgroup", { name: "Part 1 · 20 min EMOM, rotating through 4 minutes" });
     // 5 passes of: minute 1 (2 Sets), minute 2 (1 Set), minute 3 (1 Set), minute 4 (rest).
     expect(within(emom).getAllByRole("row", { name: /^Set \d+$/ })).toHaveLength(20);
     expect(within(emom).getAllByText("Rest 60 s")).toHaveLength(5);
@@ -519,7 +519,7 @@ describe("LogSessionPage", () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Set 4 Work time")).toHaveValue(45);
 
-    const rest = screen.getByRole("rowgroup", { name: "Part 2 · Rest" });
+    const rest = screen.getByRole("rowgroup", { name: "Part 2 · Rest 60 s" });
     fireEvent.click(within(rest).getByRole("button", { name: "Start rest" }));
     expect(
       within(screen.getByRole("region", { name: "Rest" })).getByRole("timer"),
