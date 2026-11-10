@@ -9,6 +9,9 @@ export function ProgramGrid({ program }: { program: ProgramOverview }) {
   return (
     <section>
       <h1>{program.name}</h1>
+      <p>
+        <Link to={`/programs/${encodeURIComponent(program.id)}/setup`}>Set up Program</Link>
+      </p>
       {program.weeks.length === 0 ? (
         <p>This Program has no Weeks yet.</p>
       ) : (

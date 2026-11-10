@@ -2,11 +2,21 @@ import { useEffect, useState } from "react";
 import { formatClock, secondsLeft } from "./restCountdown";
 
 /**
- * Counts one hold of a Hold Exercise down from its Hold time on the wall clock.
- * Start hold starts it, Stop hold ends it early, and at 0 it shows "Hold is
- * over" until the Lifter starts the next hold.
+ * Counts one hold of a Hold Exercise down from its Hold time on the wall clock,
+ * or, as `kind` "work", one Rep of a Timed Exercise from its Work time. Start
+ * starts it, Stop ends it early, and at 0 it shows "Hold is over" (or "Work is
+ * over") until the Lifter starts the next one.
  */
-export function HoldTimer({ name, seconds }: { name: string; seconds: number | null }) {
+export function HoldTimer({
+  name,
+  seconds,
+  kind = "hold",
+}: {
+  name: string;
+  seconds: number | null;
+  kind?: "hold" | "work";
+}) {
+  const Kind = kind === "hold" ? "Hold" : "Work";
   const [endsAt, setEndsAt] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const left = endsAt === null ? null : secondsLeft(endsAt, now);
@@ -30,17 +40,22 @@ export function HoldTimer({ name, seconds }: { name: string; seconds: number | n
   return (
     <span className={left === 0 ? "hold-timer over" : "hold-timer"}>
       {left !== null && (
-        <span role="timer" aria-label={`${name} hold`}>
-          {left === 0 ? "Hold is over" : formatClock(left)}
+        <span role="timer" aria-label={`${name} ${kind}`}>
+          {left === 0 ? `${Kind} is over` : formatClock(left)}
         </span>
       )}
       {running ? (
-        <button type="button" aria-label={`${name} Stop hold`} onClick={() => setEndsAt(null)}>
+        <button type="button" aria-label={`${name} Stop ${kind}`} onClick={() => setEndsAt(null)}>
           Stop
         </button>
       ) : (
-        <button type="button" aria-label={`${name} Start hold`} disabled={!seconds} onClick={start}>
-          Start hold
+        <button
+          type="button"
+          aria-label={`${name} Start ${kind}`}
+          disabled={!seconds}
+          onClick={start}
+        >
+          Start {kind}
         </button>
       )}
     </span>

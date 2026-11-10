@@ -1,59 +1,85 @@
 import { ApiError, getJson, sendJson } from "../api/client";
+import type { PartResponse, PrescriptionResponse, ProgramResponse, Side } from "../api/programs";
 
-/** An Exercise as the form needs it: whether its Sets take a Bell and a Hold time. */
+/** An Exercise as the form needs it: whether its Sets take a Bell, a Hold time or a Work time. */
 export interface ExerciseInfo {
   id: string;
   name: string;
   bodyweight: boolean;
   hold: boolean;
+  timed: boolean;
 }
 
 /**
  * One Set row on the form: what was planned or logged, as the starting values
  * the Lifter edits. `restSeconds` is the rest the Prescription asks for after
- * this Set, or null when none was prescribed.
+ * this Set, or null when none was prescribed. `place` says where in its Part
+ * the Set falls, such as "Round 2" or "Minute 5", or null.
  */
 export interface SetToLog {
   exercise: ExerciseInfo;
   reps: number;
+  side: Side | null;
   holdSeconds: number | null;
+  workSeconds: number | null;
   bellKg: number | null;
   restSeconds: number | null;
+  place: string | null;
 }
 
-/** A Session opened for logging: where it sits in its Program, and its Set rows. */
+/** A row of a Part on the form: a Set to tick off, or rest between Parts or in an EMOM. */
+export type RowToLog =
+  { kind: "set"; set: SetToLog } | { kind: "rest"; seconds: number; place: string | null };
+
+/** A Part of the Session as the form lays it out: its title, then its rows in order. */
+export interface PartToLog {
+  title: string;
+  rows: RowToLog[];
+}
+
+/** A Session opened for logging: where it sits in its Program, and its Parts. */
 export interface SessionToLog {
   programId: string;
   programName: string;
   sessionId: string;
   weekNumber: number;
   sessionNumber: number;
+  notes: string | null;
+  equipment: string[];
   /** The date of the Logged Session, or null when the Session was not logged yet. */
   loggedDate: string | null;
-  /** The logged Sets when there is a Logged Session, else one row per planned Set. */
-  sets: SetToLog[];
+  /**
+   * The planned Parts with one row per Set and rest, or, once there is a
+   * Logged Session, one Part of the logged Sets.
+   */
+  parts: PartToLog[];
 }
 
 /** One Set the Lifter really did, as the API takes it. */
 export interface LoggedSetInput {
   exerciseId: string;
   reps: number;
+  side: Side | null;
   holdSeconds: number | null;
+  workSeconds: number | null;
   bellKg: number | null;
 }
 
 /** A Set as the Lifter fills it in on the form: the values as typed, and whether it was done. */
 export interface SetEntry {
   exercise: ExerciseInfo;
+  side: Side | null;
   reps: string;
   holdSeconds: string;
+  workSeconds: string;
   bellKg: string;
   done: boolean;
 }
 
 /**
  * The Sets marked done, as the API takes them. Only a Hold Exercise has a Hold
- * time and only a Kettlebell Exercise has a Bell; the others send null.
+ * time, only a Timed Exercise a Work time and only a Kettlebell Exercise a
+ * Bell; the others send null.
  */
 export function doneSets(entries: SetEntry[]): LoggedSetInput[] {
   return entries
@@ -61,27 +87,13 @@ export function doneSets(entries: SetEntry[]): LoggedSetInput[] {
     .map((entry) => ({
       exerciseId: entry.exercise.id,
       reps: Number(entry.reps),
-      holdSeconds: entry.exercise.hold && entry.holdSeconds !== "" ? Number(entry.holdSeconds) : null,
+      side: entry.side,
+      holdSeconds:
+        entry.exercise.hold && entry.holdSeconds !== "" ? Number(entry.holdSeconds) : null,
+      workSeconds:
+        entry.exercise.timed && entry.workSeconds !== "" ? Number(entry.workSeconds) : null,
       bellKg: !entry.exercise.bodyweight && entry.bellKg !== "" ? Number(entry.bellKg) : null,
     }));
-}
-
-interface PrescriptionResponse {
-  exerciseId: string;
-  sets: number;
-  reps: number;
-  holdSeconds: number | null;
-  bellKg: number | null;
-  restSeconds: number | null;
-}
-
-interface ProgramResponse {
-  id: string;
-  name: string;
-  weeks: {
-    number: number;
-    sessions: { id: string; prescriptions: PrescriptionResponse[] }[];
-  }[];
 }
 
 interface LoggedSessionResponse {
@@ -92,11 +104,16 @@ interface LoggedSessionResponse {
 /**
  * Loads a Session of a Program for logging: the Program, the Exercise catalog
  * and the Logged Session, if any. A logged Session starts from its logged
- * Sets, so the Lifter corrects what was saved; otherwise every planned Set
- * becomes a row. Throws ApiError when a call fails, and an Error when the
+ * Sets, so the Lifter corrects what was saved; otherwise every Part lays out
+ * its Sets: once in a Part of straight Sets, once per Round in a Rounds Part,
+ * and minute by minute in an EMOM, where a minute without Prescriptions is a
+ * rest minute. Throws ApiError when a call fails, and an Error when the
  * Program has no such Session.
  */
-export async function loadSessionToLog(programId: string, sessionId: string): Promise<SessionToLog> {
+export async function loadSessionToLog(
+  programId: string,
+  sessionId: string,
+): Promise<SessionToLog> {
   const [program, exercises, logged] = await Promise.all([
     getJson<ProgramResponse>(`/api/programs/${encodeURIComponent(programId)}`),
     getJson<ExerciseInfo[]>("/api/exercises"),
@@ -109,24 +126,31 @@ export async function loadSessionToLog(programId: string, sessionId: string): Pr
       name: "Unknown Exercise",
       bodyweight: false,
       hold: false,
+      timed: false,
     };
-  const planned: SetToLog[] = place.prescriptions.flatMap((prescription) =>
-    Array.from({ length: prescription.sets }, () => ({
-      exercise: exercise(prescription.exerciseId),
-      reps: prescription.reps,
-      holdSeconds: prescription.holdSeconds,
-      bellKg: prescription.bellKg,
-      restSeconds: prescription.restSeconds,
-    })),
+  const planned = place.session.parts.map((part) => plannedPart(part, exercise));
+  const plannedSets = planned.flatMap((part) =>
+    part.rows.flatMap((row) => (row.kind === "set" ? [row.set] : [])),
   );
-  const sets: SetToLog[] = logged
-    ? logged.sets.map((set, index) => ({
-        exercise: exercise(set.exerciseId),
-        reps: set.reps,
-        holdSeconds: set.holdSeconds,
-        bellKg: set.bellKg,
-        restSeconds: plannedRest(planned, logged.sets, index),
-      }))
+  const parts: PartToLog[] = logged
+    ? [
+        {
+          title: "Logged Sets",
+          rows: logged.sets.map((set, index) => ({
+            kind: "set",
+            set: {
+              exercise: exercise(set.exerciseId),
+              reps: set.reps,
+              side: set.side,
+              holdSeconds: set.holdSeconds,
+              workSeconds: set.workSeconds,
+              bellKg: set.bellKg,
+              restSeconds: plannedRest(plannedSets, logged.sets, index),
+              place: null,
+            },
+          })),
+        },
+      ]
     : planned;
   return {
     programId: program.id,
@@ -134,9 +158,64 @@ export async function loadSessionToLog(programId: string, sessionId: string): Pr
     sessionId,
     weekNumber: place.weekNumber,
     sessionNumber: place.sessionNumber,
+    notes: place.session.notes,
+    equipment: place.session.equipment,
     loggedDate: logged?.date ?? null,
-    sets,
+    parts,
   };
+}
+
+function plannedPart(part: PartResponse, exercise: (id: string) => ExerciseInfo): PartToLog {
+  const sets = (prescription: PrescriptionResponse, place: string | null): RowToLog[] =>
+    Array.from({ length: prescription.sets }, () => ({
+      kind: "set",
+      set: {
+        exercise: exercise(prescription.exerciseId),
+        reps: prescription.reps,
+        side: prescription.side,
+        holdSeconds: prescription.holdSeconds,
+        workSeconds: prescription.workSeconds,
+        bellKg: prescription.bellKg,
+        restSeconds: prescription.restSeconds,
+        place,
+      },
+    }));
+  const title = `Part ${part.number} · `;
+  switch (part.format) {
+    case "SETS":
+      return {
+        title: `${title}Sets`,
+        rows: part.prescriptions.flatMap((p) => sets(p, null)),
+      };
+    case "ROUNDS": {
+      const rounds = part.rounds ?? 1;
+      return {
+        title: `${title}${rounds} Rounds`,
+        rows: Array.from({ length: rounds }, (_, round) =>
+          part.prescriptions.flatMap((p) => sets(p, `Round ${round + 1}`)),
+        ).flat(),
+      };
+    }
+    case "EMOM": {
+      const minutes = part.minutes ?? 1;
+      const rotation = part.rotation ?? 1;
+      return {
+        title: `${title}${minutes} min EMOM`,
+        rows: Array.from({ length: minutes }, (_, index): RowToLog[] => {
+          const place = `Minute ${index + 1}`;
+          const inMinute = part.prescriptions.filter((p) => p.minute === (index % rotation) + 1);
+          return inMinute.length === 0
+            ? [{ kind: "rest", seconds: 60, place }]
+            : inMinute.flatMap((p) => sets(p, place));
+        }).flat(),
+      };
+    }
+    case "REST":
+      return {
+        title: `${title}Rest`,
+        rows: [{ kind: "rest", seconds: part.restSeconds ?? 0, place: null }],
+      };
+  }
 }
 
 /**
@@ -206,7 +285,7 @@ function findSession(program: ProgramResponse, sessionId: string) {
       return {
         weekNumber: week.number,
         sessionNumber: index + 1,
-        prescriptions: week.sessions[index].prescriptions,
+        session: week.sessions[index],
       };
     }
   }
