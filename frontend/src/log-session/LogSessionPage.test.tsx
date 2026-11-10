@@ -161,6 +161,22 @@ describe("LogSessionPage", () => {
     expect(screen.getByRole("button", { name: "Correct Logged Session" })).toBeEnabled();
   });
 
+  it("logs the done Sets even when a Set not done has an empty field", async () => {
+    const fetch = serve(notLogged({ "POST /api/sessions/s1/log": [201, LOGGED] }));
+    renderPage();
+    await screen.findByRole("heading", { name: "Week 1 · Session 2" });
+
+    fireEvent.change(screen.getByLabelText("Set 2 Reps"), { target: { value: "" } });
+    fireEvent.change(screen.getByLabelText("Set 3 Hold time"), { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: "Set 1 done" }));
+    fireEvent.click(screen.getByRole("button", { name: "Log Session" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Logged Session saved.");
+    expect(sentBody(fetch, "POST").sets).toEqual([
+      { exerciseId: SWING, reps: 10, holdSeconds: null, bellKg: 24 },
+    ]);
+  });
+
   it("opens a Logged Session with its own Sets and corrects it", async () => {
     const fetch = serve(
       notLogged({

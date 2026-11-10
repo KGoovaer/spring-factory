@@ -25,8 +25,8 @@ type Saving =
 /**
  * The Sets of one Session as rows the Lifter marks done while training, or
  * fills in afterwards. Marking a Set done starts its prescribed rest. Only the
- * Sets marked done are logged; a Logged Session opens with all of its Sets
- * done, so saving again corrects it.
+ * Sets marked done are logged, so only their fields are required; a Logged
+ * Session opens with all of its Sets done, so saving again corrects it.
  */
 export function LogSessionForm({ session, today }: { session: SessionToLog; today: string }) {
   const [date, setDate] = useState(session.loggedDate ?? today);
@@ -136,7 +136,7 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
                     <input
                       type="number"
                       min={1}
-                      required
+                      required={row.done}
                       aria-label={`${name} Reps`}
                       value={row.reps}
                       onChange={(e) => update(row.key, { reps: e.target.value })}
@@ -147,7 +147,7 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
                       <input
                         type="number"
                         min={1}
-                        required
+                        required={row.done}
                         aria-label={`${name} Hold time`}
                         value={row.holdSeconds}
                         onChange={(e) => update(row.key, { holdSeconds: e.target.value })}
@@ -162,7 +162,7 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
                         type="number"
                         min={0}
                         step="any"
-                        required
+                        required={row.done}
                         aria-label={`${name} Bell`}
                         value={row.bellKg}
                         onChange={(e) => update(row.key, { bellKg: e.target.value })}
