@@ -145,6 +145,31 @@ describe("LogSessionPage", () => {
     expect(screen.queryByRole("timer")).not.toBeInTheDocument();
   });
 
+  it("counts a hold of a Hold Exercise down from its Hold time", async () => {
+    serve(notLogged());
+    renderPage();
+    await screen.findByRole("heading", { name: "Week 1 · Session 2" });
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] });
+    const plank = screen.getByRole("row", { name: "Set 3" });
+
+    fireEvent.change(within(plank).getByLabelText("Set 3 Hold time"), { target: { value: "" } });
+    expect(within(plank).getByRole("button", { name: "Set 3 Start hold" })).toBeDisabled();
+    fireEvent.change(within(plank).getByLabelText("Set 3 Hold time"), { target: { value: "20" } });
+    fireEvent.click(within(plank).getByRole("button", { name: "Set 3 Start hold" }));
+
+    const hold = within(plank).getByRole("timer", { name: "Set 3 hold" });
+    expect(hold).toHaveTextContent("0:20");
+    act(() => vi.advanceTimersByTime(5_000));
+    expect(hold).toHaveTextContent("0:15");
+    act(() => vi.advanceTimersByTime(15_000));
+    expect(hold).toHaveTextContent("Hold is over");
+
+    fireEvent.click(within(plank).getByRole("button", { name: "Set 3 Start hold" }));
+    expect(hold).toHaveTextContent("0:20");
+    fireEvent.click(within(plank).getByRole("button", { name: "Set 3 Stop hold" }));
+    expect(within(plank).queryByRole("timer")).not.toBeInTheDocument();
+  });
+
   it("logs only the Sets marked done, with what the Lifter changed", async () => {
     const fetch = serve(notLogged({ "POST /api/sessions/s1/log": [201, LOGGED] }));
     renderPage();

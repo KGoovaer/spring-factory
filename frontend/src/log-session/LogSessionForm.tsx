@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { errorMessage } from "../api/client";
+import { HoldTimer } from "./HoldTimer";
 import { RestTimer } from "./RestTimer";
 import {
   bellWeightProblem,
@@ -162,14 +163,17 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
                   </td>
                   <td>
                     {row.hold && (
-                      <input
-                        type="number"
-                        min={1}
-                        required={row.done}
-                        aria-label={`${name} Hold time`}
-                        value={row.holdSeconds}
-                        onChange={(e) => update(row.key, { holdSeconds: e.target.value })}
-                      />
+                      <div className="hold">
+                        <input
+                          type="number"
+                          min={1}
+                          required={row.done}
+                          aria-label={`${name} Hold time`}
+                          value={row.holdSeconds}
+                          onChange={(e) => update(row.key, { holdSeconds: e.target.value })}
+                        />
+                        <HoldTimer name={name} seconds={wholeSeconds(row.holdSeconds)} />
+                      </div>
                     )}
                   </td>
                   <td>
@@ -227,4 +231,10 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
       )}
     </form>
   );
+}
+
+/** A typed Hold time as whole seconds, or null when it is not a Hold time of at least 1 s. */
+function wholeSeconds(typed: string): number | null {
+  const seconds = Number(typed);
+  return typed !== "" && Number.isInteger(seconds) && seconds >= 1 ? seconds : null;
 }

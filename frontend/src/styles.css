@@ -192,3 +192,25 @@ body {
   padding: 0.5rem 1rem;
   font-weight: 600;
 }
+
+.log-sets .hold {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.hold-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.hold-timer [role="timer"] {
+  min-width: 3rem;
+  font-weight: 700;
+}
+
+.hold-timer.over [role="timer"] {
+  color: #1a7f37;
+}
