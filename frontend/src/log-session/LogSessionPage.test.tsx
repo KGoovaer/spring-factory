@@ -159,6 +159,9 @@ describe("LogSessionPage", () => {
       ],
     });
     expect(screen.getByRole("button", { name: "Correct Logged Session" })).toBeEnabled();
+
+    fireEvent.change(screen.getByLabelText("Set 1 Reps"), { target: { value: "9" } });
+    expect(screen.queryByText("Logged Session saved.")).not.toBeInTheDocument();
   });
 
   it("logs the done Sets even when a Set not done has an empty field", async () => {

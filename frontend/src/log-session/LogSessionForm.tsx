@@ -48,8 +48,14 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
   const [rest, setRest] = useState<{ endsAt: number; seconds: number; key: number } | null>(null);
   const [saving, setSaving] = useState<Saving>({ status: "idle" });
 
-  const update = (key: number, change: Partial<SetRow>) =>
+  // An edit makes a "saved" or "failed" message stale: it no longer describes the form.
+  const edited = () =>
+    setSaving((current) => (current.status === "saving" ? current : { status: "idle" }));
+
+  const update = (key: number, change: Partial<SetRow>) => {
+    edited();
     setRows((current) => current.map((row) => (row.key === key ? { ...row, ...change } : row)));
+  };
 
   const toggleDone = (row: SetRow) => {
     update(row.key, { done: !row.done });
@@ -98,7 +104,16 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
         {logged ? "Logged: saving corrects this Logged Session." : "Not logged yet."}
       </p>
       <label className="log-date">
-        Date <input type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
+        Date{" "}
+        <input
+          type="date"
+          required
+          value={date}
+          onChange={(e) => {
+            edited();
+            setDate(e.target.value);
+          }}
+        />
       </label>
 
       {rest && (
