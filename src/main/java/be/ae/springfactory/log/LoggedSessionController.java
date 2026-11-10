@@ -7,10 +7,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Logs a Session as performed and reads the log back. */
+/** Logs a Session as performed, corrects that log and reads it back. */
 @RestController
 class LoggedSessionController {
 
@@ -25,6 +26,13 @@ class LoggedSessionController {
       @PathVariable UUID id, @Valid @RequestBody LogSessionRequest request) {
     LoggedSession logged = loggedSessions.log(id, request.date(), request.toLoggedSets());
     return ResponseEntity.status(HttpStatus.CREATED).body(LoggedSessionResponse.of(logged));
+  }
+
+  @PutMapping("/api/sessions/{id}/log")
+  LoggedSessionResponse correct(
+      @PathVariable UUID id, @Valid @RequestBody LogSessionRequest request) {
+    return LoggedSessionResponse.of(
+        loggedSessions.correct(id, request.date(), request.toLoggedSets()));
   }
 
   @GetMapping("/api/sessions/{id}/log")

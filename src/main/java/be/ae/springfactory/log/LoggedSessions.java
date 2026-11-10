@@ -12,9 +12,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Component;
 
 /**
- * What Lifters actually did for their planned Sessions: at most one Logged Session per Session.
- * Kept in memory and lost on restart, like {@link Programs}. Planned data is only read, never
- * changed. Safe for concurrent use: when two callers log the same Session at once, only one wins.
+ * What Lifters actually did for their planned Sessions: at most one Logged Session per Session,
+ * which the Lifter may correct by replacing it. Kept in memory and lost on restart, like {@link
+ * Programs}. Planned data is only read, never changed. Safe for concurrent use: when two callers
+ * log the same Session at once, only one wins.
  */
 @Component
 public class LoggedSessions {
@@ -39,6 +40,29 @@ public class LoggedSessions {
    * SessionAlreadyLoggedException} when the Session has a Logged Session already.
    */
   public LoggedSession log(UUID sessionId, LocalDate date, List<LoggedSet> sets) {
+    LoggedSession logged = checked(sessionId, date, sets);
+    if (logs.putIfAbsent(sessionId, logged) != null) {
+      throw new SessionAlreadyLoggedException(sessionId);
+    }
+    return logged;
+  }
+
+  /**
+   * Corrects the Logged Session of this Session: replaces its date and all its Sets with these, and
+   * returns the corrected Logged Session. The Sets follow the same rules as in {@link #log}, and a
+   * rejected correction leaves the earlier Logged Session as it was. Throws what {@link #log}
+   * throws, except that {@link LoggedSessionNotFoundException} replaces {@link
+   * SessionAlreadyLoggedException}: only a Session that was logged can be corrected.
+   */
+  public LoggedSession correct(UUID sessionId, LocalDate date, List<LoggedSet> sets) {
+    LoggedSession corrected = checked(sessionId, date, sets);
+    if (logs.replace(sessionId, corrected) == null) {
+      throw new LoggedSessionNotFoundException(sessionId);
+    }
+    return corrected;
+  }
+
+  private LoggedSession checked(UUID sessionId, LocalDate date, List<LoggedSet> sets) {
     programs.session(sessionId);
     LoggedSession logged = new LoggedSession(sessionId, date, sets);
     for (LoggedSet set : logged.sets()) {
@@ -49,9 +73,6 @@ public class LoggedSessions {
               reason -> {
                 throw new InvalidLoggedSessionException(reason);
               });
-    }
-    if (logs.putIfAbsent(sessionId, logged) != null) {
-      throw new SessionAlreadyLoggedException(sessionId);
     }
     return logged;
   }

@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -90,6 +91,45 @@ class LoggedSessionEndpointTest {
     mvc.perform(log(sessionId, oneSet("\"bellKg\":32")))
         .andExpect(status().isConflict())
         .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON));
+    mvc.perform(get("/api/sessions/{id}/log", sessionId))
+        .andExpect(jsonPath("$.sets[0].bellKg").value(24));
+  }
+
+  @Test
+  void correctsALoggedSessionWithPut() throws Exception {
+    String sessionId = newSessionId();
+    mvc.perform(log(sessionId, oneSet("\"bellKg\":24"))).andExpect(status().isCreated());
+    String body =
+        """
+        {"date":"2026-11-08","sets":[
+          {"exerciseId":"%s","reps":8,"bellKg":20},
+          {"exerciseId":"%s","reps":12}]}
+        """
+            .formatted(SWING, PUSH_UP);
+
+    mvc.perform(correct(sessionId, body))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.date").value("2026-11-08"))
+        .andExpect(jsonPath("$.sets.length()").value(2))
+        .andExpect(jsonPath("$.sets[1].bellKg").value(nullValue()));
+    mvc.perform(get("/api/sessions/{id}/log", sessionId))
+        .andExpect(jsonPath("$.date").value("2026-11-08"))
+        .andExpect(jsonPath("$.sets[0].bellKg").value(20));
+  }
+
+  @Test
+  void correctingASessionThatWasNotLoggedIsNotFoundAndABadCorrectionIsRejected()
+      throws Exception {
+    String sessionId = newSessionId();
+    mvc.perform(correct(sessionId, oneSet("\"bellKg\":24")))
+        .andExpect(status().isNotFound())
+        .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON));
+
+    mvc.perform(log(sessionId, oneSet("\"bellKg\":24"))).andExpect(status().isCreated());
+    mvc.perform(correct(sessionId, oneSet("\"bellKg\":0")))
+        .andExpect(status().isBadRequest());
+    mvc.perform(correct(sessionId, "{\"date\":\"2026-11-07\",\"sets\":[]}"))
+        .andExpect(status().isBadRequest());
     mvc.perform(get("/api/sessions/{id}/log", sessionId))
         .andExpect(jsonPath("$.sets[0].bellKg").value(24));
   }
@@ -249,6 +289,12 @@ class LoggedSessionEndpointTest {
 
   private static RequestBuilder log(String sessionId, String body) {
     return post("/api/sessions/{id}/log", sessionId)
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(body);
+  }
+
+  private static RequestBuilder correct(String sessionId, String body) {
+    return put("/api/sessions/{id}/log", sessionId)
         .contentType(MediaType.APPLICATION_JSON)
         .content(body);
   }
