@@ -15,7 +15,24 @@ export class ApiError extends Error {
  * sent one. Never returns an error-shaped value.
  */
 export async function getJson<T>(path: string): Promise<T> {
-  const response = await fetch(path, { headers: { Accept: "application/json" } });
+  return requestJson<T>(path, { headers: { Accept: "application/json" } });
+}
+
+/**
+ * Sends `body` as JSON to `path` with `method` (POST or PUT) and returns the
+ * JSON body of the answer. Throws {@link ApiError} for any non-2xx answer, as
+ * {@link getJson} does.
+ */
+export async function sendJson<T>(method: "POST" | "PUT", path: string, body: unknown): Promise<T> {
+  return requestJson<T>(path, {
+    method,
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+async function requestJson<T>(path: string, init: RequestInit): Promise<T> {
+  const response = await fetch(path, init);
   if (!response.ok) {
     throw new ApiError(response.status, await problemDetail(response));
   }
@@ -33,4 +50,9 @@ async function problemDetail(response: Response): Promise<string> {
     // Not JSON: keep the status line.
   }
   return fallback;
+}
+
+/** What to show the Lifter for a caught error: its message, or the value itself. */
+export function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

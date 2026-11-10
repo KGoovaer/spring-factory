@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { formatAdherence, formatVolume } from "./format";
 import type { ProgramOverview, SessionCell, WeekRow } from "./programOverview";
 import { WeekVolumeChart } from "./WeekVolumeChart";
@@ -29,7 +30,12 @@ export function ProgramGrid({ program }: { program: ProgramOverview }) {
             </thead>
             <tbody>
               {program.weeks.map((week) => (
-                <WeekRowView key={week.id} week={week} sessionColumns={sessionColumns} />
+                <WeekRowView
+                  key={week.id}
+                  programId={program.id}
+                  week={week}
+                  sessionColumns={sessionColumns}
+                />
               ))}
             </tbody>
           </table>
@@ -42,12 +48,28 @@ export function ProgramGrid({ program }: { program: ProgramOverview }) {
   );
 }
 
-function WeekRowView({ week, sessionColumns }: { week: WeekRow; sessionColumns: number }) {
+function WeekRowView({
+  programId,
+  week,
+  sessionColumns,
+}: {
+  programId: string;
+  week: WeekRow;
+  sessionColumns: number;
+}) {
   return (
     <tr aria-label={`Week ${week.number}`}>
       <th scope="row">Week {week.number}</th>
       {Array.from({ length: sessionColumns }, (_, i) => (
-        <td key={i}>{week.sessions[i] && <SessionCellView session={week.sessions[i]} />}</td>
+        <td key={i}>
+          {week.sessions[i] && (
+            <SessionCellView
+              programId={programId}
+              label={`Week ${week.number} Session ${i + 1}`}
+              session={week.sessions[i]}
+            />
+          )}
+        </td>
       ))}
       <td className="number">{formatVolume(week.plannedVolume)}</td>
       <td className="number">{formatVolume(week.loggedVolume)}</td>
@@ -56,11 +78,27 @@ function WeekRowView({ week, sessionColumns }: { week: WeekRow; sessionColumns: 
   );
 }
 
-function SessionCellView({ session }: { session: SessionCell }) {
+function SessionCellView({
+  programId,
+  label,
+  session,
+}: {
+  programId: string;
+  label: string;
+  session: SessionCell;
+}) {
+  const action = session.logged ? "Correct Logged Session" : "Log Session";
   return (
     <div className={session.logged ? "session logged" : "session"}>
       <span className="volume">{formatVolume(session.plannedVolume)}</span>
       <span className="state">{session.logged ? "✓ Logged" : "Not logged"}</span>
+      <Link
+        className="log-link"
+        aria-label={`${action}: ${label}`}
+        to={`/programs/${encodeURIComponent(programId)}/sessions/${encodeURIComponent(session.id)}/log`}
+      >
+        {action}
+      </Link>
     </div>
   );
 }

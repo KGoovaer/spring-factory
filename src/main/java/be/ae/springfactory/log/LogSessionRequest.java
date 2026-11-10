@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * The body of POST /api/sessions/{id}/log: {date, sets: [{exerciseId, reps, holdSeconds,
+ * The body of POST and PUT /api/sessions/{id}/log: {date, sets: [{exerciseId, reps, holdSeconds,
  * bellKg}]}. bellKg is left out (or null) for a bodyweight Exercise; holdSeconds is given only for
  * a hold Exercise.
  */

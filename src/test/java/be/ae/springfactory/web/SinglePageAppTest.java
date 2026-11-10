@@ -23,4 +23,11 @@ class SinglePageAppTest {
         .andExpect(status().isOk())
         .andExpect(forwardedUrl("/index.html"));
   }
+
+  @Test
+  void theLogSessionPageOpenedDirectlyGetsTheFrontend() throws Exception {
+    mvc.perform(get("/programs/{id}/sessions/{sessionId}/log", UUID.randomUUID(), UUID.randomUUID()))
+        .andExpect(status().isOk())
+        .andExpect(forwardedUrl("/index.html"));
+  }
 }

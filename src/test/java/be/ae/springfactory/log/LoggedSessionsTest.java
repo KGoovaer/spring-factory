@@ -109,6 +109,51 @@ class LoggedSessionsTest {
   }
 
   @Test
+  void aLifterCorrectsALoggedSessionByReplacingItsDateAndSets() {
+    UUID sessionId = newSession().id();
+    loggedSessions.log(sessionId, DAY, oneSet());
+    List<LoggedSet> fixed =
+        List.of(
+            new LoggedSet(SWING, 8, new BigDecimal("24")),
+            new LoggedSet(SIT_UP, 12, null));
+
+    LoggedSession corrected = loggedSessions.correct(sessionId, DAY.minusDays(1), fixed);
+
+    assertThat(corrected).isEqualTo(new LoggedSession(sessionId, DAY.minusDays(1), fixed));
+    assertThat(loggedSessions.get(sessionId)).isEqualTo(corrected);
+  }
+
+  @Test
+  void onlyALoggedSessionCanBeCorrected() {
+    UUID sessionId = newSession().id();
+
+    assertThatThrownBy(() -> loggedSessions.correct(sessionId, DAY, oneSet()))
+        .isInstanceOf(LoggedSessionNotFoundException.class);
+    assertThat(loggedSessions.find(sessionId)).isEmpty();
+    assertThatThrownBy(() -> loggedSessions.correct(UUID.randomUUID(), DAY, oneSet()))
+        .isInstanceOf(SessionNotFoundException.class);
+  }
+
+  @Test
+  void aRejectedCorrectionKeepsTheEarlierLoggedSession() {
+    UUID sessionId = newSession().id();
+    LoggedSession first = loggedSessions.log(sessionId, DAY, oneSet());
+
+    assertThatThrownBy(
+            () ->
+                loggedSessions.correct(
+                    sessionId, DAY, List.of(new LoggedSet(SWING, 10, null))))
+        .isInstanceOf(InvalidLoggedSessionException.class)
+        .hasMessage("Swing needs a Bell weight");
+    assertThatThrownBy(
+            () ->
+                loggedSessions.correct(
+                    sessionId, DAY, List.of(new LoggedSet(UUID.randomUUID(), 1, BigDecimal.ONE))))
+        .isInstanceOf(ExerciseNotFoundException.class);
+    assertThat(loggedSessions.get(sessionId)).isEqualTo(first);
+  }
+
+  @Test
   void anUnknownSessionCannotBeLoggedOrRead() {
     UUID unknown = UUID.randomUUID();
 
