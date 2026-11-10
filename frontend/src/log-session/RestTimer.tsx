@@ -16,16 +16,17 @@ export function RestTimer({
 }) {
   const [now, setNow] = useState(() => Date.now());
   const left = secondsLeft(endsAt, now);
+  const done = left === 0;
 
+  // One interval for the whole rest, stopped once it is over.
   useEffect(() => {
-    if (left === 0) {
+    if (done) {
       return;
     }
     const tick = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(tick);
-  }, [left]);
+  }, [endsAt, done]);
 
-  const done = left === 0;
   return (
     <section className={done ? "rest-timer over" : "rest-timer"} aria-label="Rest">
       <span className="rest-label">{done ? "Rest is over" : "Rest"}</span>
