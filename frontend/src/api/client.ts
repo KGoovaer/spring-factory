@@ -15,11 +15,7 @@ export class ApiError extends Error {
  * sent one. Never returns an error-shaped value.
  */
 export async function getJson<T>(path: string): Promise<T> {
-  const response = await fetch(path, { headers: { Accept: "application/json" } });
-  if (!response.ok) {
-    throw new ApiError(response.status, await problemDetail(response));
-  }
-  return (await response.json()) as T;
+  return requestJson<T>(path, { headers: { Accept: "application/json" } });
 }
 
 /**
@@ -28,11 +24,15 @@ export async function getJson<T>(path: string): Promise<T> {
  * {@link getJson} does.
  */
 export async function sendJson<T>(method: "POST" | "PUT", path: string, body: unknown): Promise<T> {
-  const response = await fetch(path, {
+  return requestJson<T>(path, {
     method,
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+}
+
+async function requestJson<T>(path: string, init: RequestInit): Promise<T> {
+  const response = await fetch(path, init);
   if (!response.ok) {
     throw new ApiError(response.status, await problemDetail(response));
   }
