@@ -40,7 +40,7 @@ public class LoggedSessions {
    * SessionAlreadyLoggedException} when the Session has a Logged Session already.
    */
   public LoggedSession log(UUID sessionId, LocalDate date, List<LoggedSet> sets) {
-    LoggedSession logged = checked(sessionId, date, sets);
+    LoggedSession logged = validated(sessionId, date, sets);
     if (logs.putIfAbsent(sessionId, logged) != null) {
       throw new SessionAlreadyLoggedException(sessionId);
     }
@@ -55,14 +55,18 @@ public class LoggedSessions {
    * SessionAlreadyLoggedException}: only a Session that was logged can be corrected.
    */
   public LoggedSession correct(UUID sessionId, LocalDate date, List<LoggedSet> sets) {
-    LoggedSession corrected = checked(sessionId, date, sets);
+    LoggedSession corrected = validated(sessionId, date, sets);
     if (logs.replace(sessionId, corrected) == null) {
       throw new LoggedSessionNotFoundException(sessionId);
     }
     return corrected;
   }
 
-  private LoggedSession checked(UUID sessionId, LocalDate date, List<LoggedSet> sets) {
+  /**
+   * The Logged Session these values make, once the Session exists and every Set fits its Exercise in
+   * the catalog; throws as {@link #log} documents otherwise.
+   */
+  private LoggedSession validated(UUID sessionId, LocalDate date, List<LoggedSet> sets) {
     programs.session(sessionId);
     LoggedSession logged = new LoggedSession(sessionId, date, sets);
     for (LoggedSet set : logged.sets()) {
