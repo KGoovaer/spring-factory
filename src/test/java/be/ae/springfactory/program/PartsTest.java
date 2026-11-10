@@ -130,6 +130,12 @@ class PartsTest {
         .isInstanceOf(InvalidPartException.class)
         .hasMessage("This EMOM rotates through 4 minutes, so it has no minute 5");
     assertThatThrownBy(
+            () ->
+                programs.addPrescription(
+                    sessionId, 1, new Prescription(SWING, 1, 5, null, null, null, BELL, 90, 1)))
+        .isInstanceOf(InvalidPartException.class)
+        .hasMessageStartingWith("A Prescription in an EMOM takes no rest");
+    assertThatThrownBy(
             () -> programs.addPrescription(sessionId, 2, new Prescription(SWING, 1, 5, BELL, null)))
         .isInstanceOf(InvalidPartException.class)
         .hasMessage("A rest Part takes no Prescriptions");

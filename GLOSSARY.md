@@ -27,7 +27,7 @@ One pass through all the Prescriptions of a Rounds Part, in order. "3 Rounds" do
 _Avoid_: Circuit, Lap
 
 **EMOM**:
-Every minute on the minute: a Part done for a number of minutes, cycling through a rotation of minutes. At the start of each minute the Lifter does the Prescriptions of that minute of the rotation, then rests for what is left of it. A minute of the rotation without Prescriptions is a rest minute.
+Every minute on the minute: a Part done for a number of minutes, cycling through a rotation of minutes. At the start of each minute the Lifter does the Prescriptions of that minute of the rotation, then rests for what is left of it. So an EMOM Prescription has no rest of its own. A minute of the rotation without Prescriptions is a rest minute.
 _Avoid_: Interval, Clock
 
 **Equipment**:

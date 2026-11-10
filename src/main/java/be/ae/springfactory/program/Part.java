@@ -21,7 +21,7 @@ import java.util.Objects;
  *   <li>{@code REST}: {@code restSeconds} (at least 1) of rest and no Prescriptions.
  * </ul>
  *
- * Only an EMOM Prescription has a minute. Immutable: adding a Prescription yields a new Part.
+ * Only an EMOM Prescription has a minute, and it has no rest of its own. Immutable: adding a Prescription yields a new Part.
  */
 public record Part(
     PartFormat format,
@@ -110,6 +110,11 @@ public record Part(
                 + rotation
                 + " minutes, so it has no minute "
                 + prescription.minute());
+      }
+      if (prescription.restSeconds() != null) {
+        throw new InvalidPartException(
+            "A Prescription in an EMOM takes no rest: the Lifter rests for what is left of the"
+                + " minute");
       }
     } else if (prescription.minute() != null) {
       throw new InvalidPartException("Only a Prescription in an EMOM has a minute");
