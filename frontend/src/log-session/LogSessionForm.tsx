@@ -5,8 +5,9 @@ import { HoldTimer } from "./HoldTimer";
 import { RestTimer } from "./RestTimer";
 import {
   bellWeightProblem,
+  correctLoggedSession,
   doneSets,
-  saveLoggedSession,
+  logSession,
   type SessionToLog,
   type SetEntry,
 } from "./logSession";
@@ -69,7 +70,8 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
     event.preventDefault();
     setSaving({ status: "saving" });
     try {
-      await saveLoggedSession(session.sessionId, date, done, logged);
+      const send = logged ? correctLoggedSession : logSession;
+      await send(session.sessionId, date, done);
       setLogged(true);
       setSaving({ status: "saved" });
     } catch (error) {

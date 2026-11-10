@@ -148,20 +148,32 @@ export function bellWeightProblem(bellKg: string): string {
 }
 
 /**
- * Saves the Sets the Lifter did on `date`: logs the Session, or corrects its
- * Logged Session when it has one already. The server checks every rule and
- * answers with ApiError (and its reason) when one is broken.
+ * Logs the Session as performed on `date` with the Sets the Lifter did. The
+ * server checks every rule and answers with ApiError (and its reason) when one
+ * is broken, or when the Session has a Logged Session already.
  */
-export async function saveLoggedSession(
+export async function logSession(
   sessionId: string,
   date: string,
   sets: LoggedSetInput[],
-  alreadyLogged: boolean,
 ): Promise<void> {
-  await sendJson(alreadyLogged ? "PUT" : "POST", `/api/sessions/${encodeURIComponent(sessionId)}/log`, {
-    date,
-    sets,
-  });
+  await sendJson("POST", logPath(sessionId), { date, sets });
+}
+
+/**
+ * Replaces the Logged Session of the Session with what the Lifter really did.
+ * Throws ApiError, as logSession does.
+ */
+export async function correctLoggedSession(
+  sessionId: string,
+  date: string,
+  sets: LoggedSetInput[],
+): Promise<void> {
+  await sendJson("PUT", logPath(sessionId), { date, sets });
+}
+
+function logPath(sessionId: string): string {
+  return `/api/sessions/${encodeURIComponent(sessionId)}/log`;
 }
 
 /**
@@ -178,9 +190,7 @@ function plannedRest(planned: SetToLog[], logged: LoggedSetInput[], index: numbe
 
 async function findLoggedSession(sessionId: string): Promise<LoggedSessionResponse | null> {
   try {
-    return await getJson<LoggedSessionResponse>(
-      `/api/sessions/${encodeURIComponent(sessionId)}/log`,
-    );
+    return await getJson<LoggedSessionResponse>(logPath(sessionId));
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) {
       return null;
