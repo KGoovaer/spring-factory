@@ -27,6 +27,13 @@ const PROGRAM = {
             { exerciseId: PLANK, sets: 1, reps: 1, holdSeconds: 30, bellKg: null, restSeconds: null },
           ],
         },
+        {
+          id: "s2",
+          prescriptions: [
+            { exerciseId: SWING, sets: 1, reps: 10, holdSeconds: null, bellKg: 24, restSeconds: 60 },
+            { exerciseId: SWING, sets: 1, reps: 5, holdSeconds: null, bellKg: 32, restSeconds: 120 },
+          ],
+        },
       ],
     },
   ],
@@ -204,6 +211,29 @@ describe("LogSessionPage", () => {
       date: "2026-11-08",
       sets: [{ exerciseId: SWING, reps: 8, holdSeconds: null, bellKg: 16 }],
     });
+  });
+
+  it("keeps the rest of each planned Set when an Exercise is prescribed twice", async () => {
+    serve({
+      "GET /api/programs/p1": [200, PROGRAM],
+      "GET /api/exercises": [200, EXERCISES],
+      "GET /api/sessions/s2/log": [
+        200,
+        {
+          sessionId: "s2",
+          date: "2026-11-08",
+          sets: [
+            { exerciseId: SWING, reps: 10, holdSeconds: null, bellKg: 24 },
+            { exerciseId: SWING, reps: 5, holdSeconds: null, bellKg: 32 },
+          ],
+        },
+      ],
+    });
+    renderPage("/programs/p1/sessions/s2/log");
+    await screen.findByRole("heading", { name: "Week 1 · Session 3" });
+
+    expect(within(screen.getByRole("row", { name: "Set 1" })).getByText("60 s")).toBeInTheDocument();
+    expect(within(screen.getByRole("row", { name: "Set 2" })).getByText("120 s")).toBeInTheDocument();
   });
 
   it("shows the server's reason when the log is rejected", async () => {

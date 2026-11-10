@@ -86,26 +86,24 @@ export async function loadSessionToLog(programId: string, sessionId: string): Pr
       bodyweight: false,
       hold: false,
     };
-  const restAfter = new Map(
-    place.prescriptions.map((prescription) => [prescription.exerciseId, prescription.restSeconds]),
+  const planned: SetToLog[] = place.prescriptions.flatMap((prescription) =>
+    Array.from({ length: prescription.sets }, () => ({
+      exercise: exercise(prescription.exerciseId),
+      reps: prescription.reps,
+      holdSeconds: prescription.holdSeconds,
+      bellKg: prescription.bellKg,
+      restSeconds: prescription.restSeconds,
+    })),
   );
   const sets: SetToLog[] = logged
-    ? logged.sets.map((set) => ({
+    ? logged.sets.map((set, index) => ({
         exercise: exercise(set.exerciseId),
         reps: set.reps,
         holdSeconds: set.holdSeconds,
         bellKg: set.bellKg,
-        restSeconds: restAfter.get(set.exerciseId) ?? null,
+        restSeconds: plannedRest(planned, logged.sets, index),
       }))
-    : place.prescriptions.flatMap((prescription) =>
-        Array.from({ length: prescription.sets }, () => ({
-          exercise: exercise(prescription.exerciseId),
-          reps: prescription.reps,
-          holdSeconds: prescription.holdSeconds,
-          bellKg: prescription.bellKg,
-          restSeconds: prescription.restSeconds,
-        })),
-      );
+    : planned;
   return {
     programId: program.id,
     programName: program.name,
@@ -132,6 +130,18 @@ export async function saveLoggedSession(
     date,
     sets,
   });
+}
+
+/**
+ * The rest planned after the logged Set at `index`: the rest of the planned Set
+ * of the same Exercise in the same place (its first, second… Set of that
+ * Exercise), or of its last planned Set when more were logged than planned.
+ */
+function plannedRest(planned: SetToLog[], logged: LoggedSetInput[], index: number): number | null {
+  const exerciseId = logged[index].exerciseId;
+  const nth = logged.slice(0, index).filter((set) => set.exerciseId === exerciseId).length;
+  const same = planned.filter((set) => set.exercise.id === exerciseId);
+  return same[Math.min(nth, same.length - 1)]?.restSeconds ?? null;
 }
 
 async function findLoggedSession(sessionId: string): Promise<LoggedSessionResponse | null> {
