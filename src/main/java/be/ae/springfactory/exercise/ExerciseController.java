@@ -27,13 +27,7 @@ class ExerciseController {
 
   @PostMapping
   ResponseEntity<ExerciseResponse> add(@Valid @RequestBody AddExerciseRequest request) {
-    Exercise exercise =
-        catalog.add(
-            request.name(),
-            Boolean.TRUE.equals(request.bodyweight()),
-            Boolean.TRUE.equals(request.hold()),
-            Boolean.TRUE.equals(request.timed()),
-            request.gear());
+    Exercise exercise = request.addTo(catalog);
     return ResponseEntity.created(URI.create("/api/exercises/" + exercise.id()))
         .body(ExerciseResponse.of(exercise));
   }
