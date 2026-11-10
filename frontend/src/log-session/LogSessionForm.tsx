@@ -5,22 +5,15 @@ import { HoldTimer } from "./HoldTimer";
 import { RestTimer } from "./RestTimer";
 import {
   bellWeightProblem,
+  doneSets,
   saveLoggedSession,
-  type LoggedSetInput,
   type SessionToLog,
+  type SetEntry,
 } from "./logSession";
 
-interface SetRow {
+interface SetRow extends SetEntry {
   key: number;
-  exerciseId: string;
-  exerciseName: string;
-  bodyweight: boolean;
-  hold: boolean;
-  reps: string;
-  bellKg: string;
-  holdSeconds: string;
   restSeconds: number | null;
-  done: boolean;
 }
 
 type Saving =
@@ -40,10 +33,7 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
   const [rows, setRows] = useState<SetRow[]>(() =>
     session.sets.map((set, key) => ({
       key,
-      exerciseId: set.exercise.id,
-      exerciseName: set.exercise.name,
-      bodyweight: set.exercise.bodyweight,
-      hold: set.exercise.hold,
+      exercise: set.exercise,
       reps: String(set.reps),
       bellKg: set.bellKg === null ? "" : String(set.bellKg),
       holdSeconds: set.holdSeconds === null ? "" : String(set.holdSeconds),
@@ -73,20 +63,13 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
     }
   };
 
-  const doneSets: LoggedSetInput[] = rows
-    .filter((row) => row.done)
-    .map((row) => ({
-      exerciseId: row.exerciseId,
-      reps: Number(row.reps),
-      holdSeconds: row.hold && row.holdSeconds !== "" ? Number(row.holdSeconds) : null,
-      bellKg: !row.bodyweight && row.bellKg !== "" ? Number(row.bellKg) : null,
-    }));
+  const done = doneSets(rows);
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
     setSaving({ status: "saving" });
     try {
-      await saveLoggedSession(session.sessionId, date, doneSets, logged);
+      await saveLoggedSession(session.sessionId, date, done, logged);
       setLogged(true);
       setSaving({ status: "saved" });
     } catch (error) {
@@ -150,7 +133,7 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
               return (
                 <tr key={row.key} aria-label={name} className={row.done ? "done" : undefined}>
                   <th scope="row">{index + 1}</th>
-                  <td>{row.exerciseName}</td>
+                  <td>{row.exercise.name}</td>
                   <td>
                     <input
                       type="number"
@@ -162,7 +145,7 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
                     />
                   </td>
                   <td>
-                    {row.hold && (
+                    {row.exercise.hold && (
                       <div className="hold">
                         <input
                           type="number"
@@ -177,7 +160,7 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
                     )}
                   </td>
                   <td>
-                    {row.bodyweight ? (
+                    {row.exercise.bodyweight ? (
                       <span className="no-bell">Bodyweight</span>
                     ) : (
                       <input
@@ -215,12 +198,12 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
         <button
           type="submit"
           className="primary"
-          disabled={doneSets.length === 0 || saving.status === "saving"}
+          disabled={done.length === 0 || saving.status === "saving"}
         >
           {logged ? "Correct Logged Session" : "Log Session"}
         </button>
         <span>
-          {doneSets.length} of {rows.length} Sets done
+          {done.length} of {rows.length} Sets done
         </span>
       </div>
       {saving.status === "saved" && <p role="status">Logged Session saved.</p>}

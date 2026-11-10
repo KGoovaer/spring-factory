@@ -42,6 +42,30 @@ export interface LoggedSetInput {
   bellKg: number | null;
 }
 
+/** A Set as the Lifter fills it in on the form: the values as typed, and whether it was done. */
+export interface SetEntry {
+  exercise: ExerciseInfo;
+  reps: string;
+  holdSeconds: string;
+  bellKg: string;
+  done: boolean;
+}
+
+/**
+ * The Sets marked done, as the API takes them. Only a Hold Exercise has a Hold
+ * time and only a Kettlebell Exercise has a Bell; the others send null.
+ */
+export function doneSets(entries: SetEntry[]): LoggedSetInput[] {
+  return entries
+    .filter((entry) => entry.done)
+    .map((entry) => ({
+      exerciseId: entry.exercise.id,
+      reps: Number(entry.reps),
+      holdSeconds: entry.exercise.hold && entry.holdSeconds !== "" ? Number(entry.holdSeconds) : null,
+      bellKg: !entry.exercise.bodyweight && entry.bellKg !== "" ? Number(entry.bellKg) : null,
+    }));
+}
+
 interface PrescriptionResponse {
   exerciseId: string;
   sets: number;
