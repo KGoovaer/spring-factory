@@ -2,7 +2,12 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { errorMessage } from "../api/client";
 import { RestTimer } from "./RestTimer";
-import { saveLoggedSession, type LoggedSetInput, type SessionToLog } from "./logSession";
+import {
+  bellWeightProblem,
+  saveLoggedSession,
+  type LoggedSetInput,
+  type SessionToLog,
+} from "./logSession";
 
 interface SetRow {
   key: number;
@@ -173,9 +178,11 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
                     ) : (
                       <input
                         type="number"
-                        min={0}
                         step="any"
                         required={row.done}
+                        ref={(input) =>
+                          input?.setCustomValidity(row.done ? bellWeightProblem(row.bellKg) : "")
+                        }
                         aria-label={`${name} Bell`}
                         value={row.bellKg}
                         onChange={(e) => update(row.key, { bellKg: e.target.value })}

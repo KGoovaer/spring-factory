@@ -116,6 +116,14 @@ export async function loadSessionToLog(programId: string, sessionId: string): Pr
 }
 
 /**
+ * Why a Bell weight typed for a Kettlebell Exercise cannot be logged, or "" when
+ * it can: a Kettlebell Exercise always has a Bell above 0 kg.
+ */
+export function bellWeightProblem(bellKg: string): string {
+  return bellKg !== "" && !(Number(bellKg) > 0) ? "A Bell weighs more than 0 kg." : "";
+}
+
+/**
  * Saves the Sets the Lifter did on `date`: logs the Session, or corrects its
  * Logged Session when it has one already. The server checks every rule and
  * answers with ApiError (and its reason) when one is broken.

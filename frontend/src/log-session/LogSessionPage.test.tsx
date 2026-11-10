@@ -187,6 +187,26 @@ describe("LogSessionPage", () => {
     ]);
   });
 
+  it("rejects a Bell of 0 kg on a done Set before sending anything", async () => {
+    const fetch = serve(notLogged({ "POST /api/sessions/s1/log": [201, LOGGED] }));
+    renderPage();
+    await screen.findByRole("heading", { name: "Week 1 · Session 2" });
+
+    fireEvent.change(screen.getByLabelText("Set 2 Bell"), { target: { value: "0" } });
+    fireEvent.click(screen.getByRole("button", { name: "Set 1 done" }));
+    fireEvent.click(screen.getByRole("button", { name: "Log Session" }));
+    expect(screen.getByLabelText("Set 2 Bell")).toBeValid();
+    expect(await screen.findByRole("status")).toHaveTextContent("Logged Session saved.");
+
+    fireEvent.click(screen.getByRole("button", { name: "Set 2 done" }));
+    fireEvent.click(screen.getByRole("button", { name: "Skip rest" }));
+    const bell = screen.getByLabelText("Set 2 Bell");
+    expect(bell).toBeInvalid();
+    expect((bell as HTMLInputElement).validationMessage).toBe("A Bell weighs more than 0 kg.");
+    fireEvent.click(screen.getByRole("button", { name: "Correct Logged Session" }));
+    expect(fetch.mock.calls.filter(([, init]) => init?.method === "PUT")).toHaveLength(0);
+  });
+
   it("opens a Logged Session with its own Sets and corrects it", async () => {
     const fetch = serve(
       notLogged({
