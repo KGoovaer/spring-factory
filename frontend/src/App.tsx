@@ -1,10 +1,12 @@
 import { Route, Routes } from "react-router-dom";
+import { LogSessionPage } from "./log-session/LogSessionPage";
 import { ProgramOverviewPage } from "./program-overview/ProgramOverviewPage";
 
 export function App() {
   return (
     <Routes>
       <Route path="/programs/:id" element={<ProgramOverviewPage />} />
+      <Route path="/programs/:id/sessions/:sessionId/log" element={<LogSessionPage />} />
       <Route
         path="*"
         element={

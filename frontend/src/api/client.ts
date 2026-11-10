@@ -22,6 +22,23 @@ export async function getJson<T>(path: string): Promise<T> {
   return (await response.json()) as T;
 }
 
+/**
+ * Sends `body` as JSON to `path` with `method` (POST or PUT) and returns the
+ * JSON body of the answer. Throws {@link ApiError} for any non-2xx answer, as
+ * {@link getJson} does.
+ */
+export async function sendJson<T>(method: "POST" | "PUT", path: string, body: unknown): Promise<T> {
+  const response = await fetch(path, {
+    method,
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await problemDetail(response));
+  }
+  return (await response.json()) as T;
+}
+
 async function problemDetail(response: Response): Promise<string> {
   const fallback = `${response.status} ${response.statusText}`.trim();
   try {

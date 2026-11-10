@@ -91,3 +91,104 @@ body {
 .week-volume-chart .legend-label {
   color: #1d2329;
 }
+
+.session .log-link {
+  font-size: 0.8rem;
+  color: #1f5fae;
+}
+
+.log-session h1 {
+  margin-bottom: 0.25rem;
+}
+
+.log-session .log-state {
+  margin-top: 0;
+  color: #4b5563;
+}
+
+.log-date {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.log-sets {
+  border-collapse: collapse;
+  width: 100%;
+  background: #fff;
+}
+
+.log-sets th,
+.log-sets td {
+  border: 1px solid #dde1e6;
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+}
+
+.log-sets thead th {
+  background: #eef0f3;
+  font-weight: 600;
+}
+
+.log-sets tr.done {
+  background: #dafbe1;
+}
+
+.log-sets input {
+  width: 5rem;
+}
+
+.log-sets .number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.log-sets button[aria-pressed="true"] {
+  border-color: #1a7f37;
+  color: #0f5323;
+}
+
+.no-bell {
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.rest-timer {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: #1d2329;
+  color: #fff;
+}
+
+.rest-timer.over {
+  background: #1a7f37;
+}
+
+.rest-timer .rest-clock {
+  font-size: 2.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.rest-timer progress {
+  flex: 1;
+}
+
+.log-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-top: 1rem;
+}
+
+.log-actions .primary {
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+}
