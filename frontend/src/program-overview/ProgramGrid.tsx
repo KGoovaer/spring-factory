@@ -87,7 +87,7 @@ function SessionCellView({
   label: string;
   session: SessionCell;
 }) {
-  const action = session.logged ? "Correct log" : "Log Session";
+  const action = session.logged ? "Correct Logged Session" : "Log Session";
   return (
     <div className={session.logged ? "session logged" : "session"}>
       <span className="volume">{formatVolume(session.plannedVolume)}</span>

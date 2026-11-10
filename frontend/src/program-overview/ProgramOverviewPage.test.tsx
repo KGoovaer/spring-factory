@@ -70,7 +70,7 @@ describe("ProgramOverviewPage", () => {
 
     const week1 = await screen.findByRole("row", { name: "Week 1" });
     expect(within(week1).getAllByRole("cell").map((cell) => cell.textContent)).toEqual([
-      "2,400 kg✓ LoggedCorrect log",
+      "2,400 kg✓ LoggedCorrect Logged Session",
       "1,200 kgNot loggedLog Session",
       "3,600 kg",
       "2,400 kg",
@@ -122,7 +122,7 @@ describe("ProgramOverviewPage", () => {
     renderPage();
 
     expect(
-      await screen.findByRole("link", { name: "Correct log: Week 1 Session 1" }),
+      await screen.findByRole("link", { name: "Correct Logged Session: Week 1 Session 1" }),
     ).toHaveAttribute("href", "/programs/p1/sessions/s1/log");
     expect(screen.getByRole("link", { name: "Log Session: Week 1 Session 2" })).toHaveAttribute(
       "href",
