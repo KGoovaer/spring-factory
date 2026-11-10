@@ -1,11 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback } from "react";
 import { useParams } from "react-router-dom";
+import { useLoaded } from "../api/useLoaded";
 import { LogSessionForm } from "./LogSessionForm";
-import { loadSessionToLog, type SessionToLog } from "./logSession";
-
-type Result = { status: "failed"; message: string } | { status: "loaded"; session: SessionToLog };
-
-type State = { status: "loading" } | Result;
+import { loadSessionToLog } from "./logSession";
 
 /** Today as `yyyy-mm-dd` in the Lifter's own time zone. */
 function today(): string {
@@ -17,25 +14,7 @@ function today(): string {
 /** The page at /programs/:id/sessions/:sessionId/log: log a Session, or correct its log. */
 export function LogSessionPage() {
   const { id = "", sessionId = "" } = useParams();
-  const key = `${id}/${sessionId}`;
-  const [result, setResult] = useState<{ key: string; result: Result } | null>(null);
-  const state: State = result?.key === key ? result.result : { status: "loading" };
-
-  useEffect(() => {
-    let current = true;
-    const settle = (outcome: Result) => current && setResult({ key, result: outcome });
-    loadSessionToLog(id, sessionId).then(
-      (session) => settle({ status: "loaded", session }),
-      (error: unknown) =>
-        settle({
-          status: "failed",
-          message: error instanceof Error ? error.message : String(error),
-        }),
-    );
-    return () => {
-      current = false;
-    };
-  }, [id, sessionId, key]);
+  const state = useLoaded(useCallback(() => loadSessionToLog(id, sessionId), [id, sessionId]));
 
   return (
     <main className="page">
@@ -46,7 +25,7 @@ export function LogSessionPage() {
           <p>{state.message}</p>
         </div>
       )}
-      {state.status === "loaded" && <LogSessionForm session={state.session} today={today()} />}
+      {state.status === "loaded" && <LogSessionForm session={state.value} today={today()} />}
     </main>
   );
 }

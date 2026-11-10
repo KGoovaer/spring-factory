@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { errorMessage } from "../api/client";
 import { RestTimer } from "./RestTimer";
 import { saveLoggedSession, type LoggedSetInput, type SessionToLog } from "./logSession";
 
@@ -83,10 +84,7 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
       setLogged(true);
       setSaving({ status: "saved" });
     } catch (error) {
-      setSaving({
-        status: "failed",
-        message: error instanceof Error ? error.message : String(error),
-      });
+      setSaving({ status: "failed", message: errorMessage(error) });
     }
   };
 

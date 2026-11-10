@@ -51,3 +51,8 @@ async function problemDetail(response: Response): Promise<string> {
   }
   return fallback;
 }
+
+/** What to show the Lifter for a caught error: its message, or the value itself. */
+export function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
