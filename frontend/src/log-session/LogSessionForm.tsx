@@ -277,30 +277,22 @@ function SetRowView({
       </td>
       <td>
         {row.exercise.hold && (
-          <div className="hold">
-            <input
-              type="number"
-              min={1}
-              required={row.done}
-              aria-label={`${name} Hold time`}
-              value={row.holdSeconds}
-              onChange={(e) => update(row.key, { holdSeconds: e.target.value })}
-            />
-            <HoldTimer name={name} seconds={wholeSeconds(row.holdSeconds)} />
-          </div>
+          <TimeField
+            name={name}
+            kind="hold"
+            required={row.done}
+            value={row.holdSeconds}
+            onChange={(holdSeconds) => update(row.key, { holdSeconds })}
+          />
         )}
         {row.exercise.timed && (
-          <div className="hold">
-            <input
-              type="number"
-              min={1}
-              required={row.done}
-              aria-label={`${name} Work time`}
-              value={row.workSeconds}
-              onChange={(e) => update(row.key, { workSeconds: e.target.value })}
-            />
-            <HoldTimer name={name} seconds={wholeSeconds(row.workSeconds)} kind="work" />
-          </div>
+          <TimeField
+            name={name}
+            kind="work"
+            required={row.done}
+            value={row.workSeconds}
+            onChange={(workSeconds) => update(row.key, { workSeconds })}
+          />
         )}
       </td>
       <td>
@@ -337,4 +329,33 @@ function SetRowView({
 function wholeSeconds(typed: string): number | null {
   const seconds = Number(typed);
   return typed !== "" && Number.isInteger(seconds) && seconds >= 1 ? seconds : null;
+}
+
+/** The Hold time or Work time of a Set, with a timer that counts it down. */
+function TimeField({
+  name,
+  kind,
+  required,
+  value,
+  onChange,
+}: {
+  name: string;
+  kind: "hold" | "work";
+  required: boolean;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="hold">
+      <input
+        type="number"
+        min={1}
+        required={required}
+        aria-label={`${name} ${kind === "hold" ? "Hold" : "Work"} time`}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <HoldTimer name={name} seconds={wholeSeconds(value)} kind={kind} />
+    </div>
+  );
 }
