@@ -257,13 +257,15 @@ function logPath(sessionId: string): string {
 
 /**
  * The rest planned after the logged Set at `index`: the rest of the planned Set
- * of the same Exercise in the same place (its first, second… Set of that
- * Exercise), or of its last planned Set when more were logged than planned.
+ * of the same Exercise on the same Side in the same place (its first, second…
+ * such Set), or of its last planned one when more were logged than planned.
  */
 function plannedRest(planned: SetToLog[], logged: LoggedSetInput[], index: number): number | null {
-  const exerciseId = logged[index].exerciseId;
-  const nth = logged.slice(0, index).filter((set) => set.exerciseId === exerciseId).length;
-  const same = planned.filter((set) => set.exercise.id === exerciseId);
+  const { exerciseId, side } = logged[index];
+  const nth = logged
+    .slice(0, index)
+    .filter((set) => set.exerciseId === exerciseId && set.side === side).length;
+  const same = planned.filter((set) => set.exercise.id === exerciseId && set.side === side);
   return same[Math.min(nth, same.length - 1)]?.restSeconds ?? null;
 }
 

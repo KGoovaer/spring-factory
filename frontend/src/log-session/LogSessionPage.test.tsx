@@ -140,6 +140,10 @@ const PROGRAM = {
           { exerciseId: SWING, sets: 1, reps: 5, bellKg: 32, restSeconds: 120 },
         ]),
         EMOM_SESSION,
+        session("s4", [
+          { exerciseId: SWING, reps: 8, side: "LEFT", bellKg: 16, restSeconds: 30 },
+          { exerciseId: SWING, reps: 8, side: "RIGHT", bellKg: 16, restSeconds: 90 },
+        ]),
       ],
     },
   ],
@@ -459,6 +463,34 @@ describe("LogSessionPage", () => {
     ).toBeInTheDocument();
     expect(
       within(screen.getByRole("row", { name: "Set 2" })).getByText("120 s"),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the rest planned for the Side of each logged Set", async () => {
+    const swing = (side: string) => ({
+      exerciseId: SWING,
+      reps: 8,
+      side,
+      holdSeconds: null,
+      workSeconds: null,
+      bellKg: 16,
+    });
+    serve({
+      "GET /api/programs/p1": [200, PROGRAM],
+      "GET /api/exercises": [200, EXERCISES],
+      "GET /api/sessions/s4/log": [
+        200,
+        { sessionId: "s4", date: "2026-11-08", sets: [swing("RIGHT"), swing("LEFT")] },
+      ],
+    });
+    renderPage("/programs/p1/sessions/s4/log");
+    await screen.findByRole("heading", { name: "Week 1 · Session 5" });
+
+    expect(
+      within(screen.getByRole("row", { name: "Set 1" })).getByText("90 s"),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("row", { name: "Set 2" })).getByText("30 s"),
     ).toBeInTheDocument();
   });
 
