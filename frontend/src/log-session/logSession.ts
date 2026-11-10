@@ -62,7 +62,7 @@ interface ProgramResponse {
 
 interface LoggedSessionResponse {
   date: string;
-  sets: { exerciseId: string; reps: number; holdSeconds: number | null; bellKg: number | null }[];
+  sets: LoggedSetInput[];
 }
 
 /**
