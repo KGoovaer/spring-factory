@@ -34,17 +34,6 @@ class ExercisePersistenceTest {
   }
 
   @Test
-  void aSeedOverridesAnExerciseALifterAddedUnderItsName() {
-    migrate("1");
-    ExerciseCatalog catalog = new ExerciseCatalog(JdbcClient.create(database));
-    catalog.add("SWING", true, true, false, null);
-
-    migrate(null);
-
-    assertThat(catalog.all()).hasSize(12).first().isEqualTo(new Exercise(SWING, "Swing", false, false));
-  }
-
-  @Test
   void theDatabaseItselfRefusesAHoldThatIsTimedAndGearWithABell() {
     migrate(null);
     JdbcClient jdbc = JdbcClient.create(database);

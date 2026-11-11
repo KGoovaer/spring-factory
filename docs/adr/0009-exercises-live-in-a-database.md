@@ -18,11 +18,9 @@ Exercises move first, on their own.
   `Exercise` record, so the Kettlebell, Bodyweight, Hold and Timed rules hold
   for what is read back; the table repeats the two rules a row can break on its
   own (not both a hold and timed, gear only without a Bell) as checks.
-- **A seed overrides a Lifter's Exercise of the same name.** A seed migration
-  merges on the lower-cased name: a listed Exercise a Lifter added as "swing"
-  becomes the seeded Swing, with its id and classification. That is safe while
-  Programs and Logged Sessions live in memory, because nothing refers to the old
-  id when migrations run at startup.
+- **Seeds are plain inserts.** `V1` and `V2` run together on an empty table,
+  so no Lifter's Exercise can share a seed's name. A later seed migration that
+  meets a name a Lifter took decides then what to do with it; none is planned.
 - **A Lifter changes or removes an Exercise.** `PUT /api/exercises/{id}` takes
   the same body as `POST` and keeps the id and place in the catalog; a taken
   name is a 409. `DELETE /api/exercises/{id}` removes it from the list and frees
@@ -35,7 +33,7 @@ Exercises move first, on their own.
 
 - **Programs and Logged Sessions in the database.** They stay in memory and are
   still lost on restart. When they move, their references to Exercises become
-  foreign keys, and a seed can no longer take over a Lifter's id silently.
+  foreign keys.
 - **Changing or removing Exercises in the setup page.** The API comes first.
 - **Refusing a new Prescription for a removed Exercise.** The setup page only
   offers listed Exercises; the API still accepts a removed one's id.
