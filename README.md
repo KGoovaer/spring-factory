@@ -1,9 +1,12 @@
 # Spring Factory
+
 This repository combines a Java 21 Spring Boot application and a React
 frontend with a GitHub-hosted software factory. GitHub Actions orchestrates the
 work, while Sandcastle runs specialized AI agents for exploration,
 implementation, decomposition, and review.
+
 ## How the software factory works
+
 ```mermaid
 flowchart TD
     Human["Human creates an issue or spec"]
@@ -44,6 +47,7 @@ flowchart TD
     Reviewer -->|"mark PR ready"| Merge["Human reviews and merges"]
     Merge -->|"spec queue has more work"| SpecWorkflow
 ```
+
 The workflows are deliberately memoryless: GitHub issues, labels,
 dependencies, comments, branches, and pull requests hold the durable state.
 Agents do not receive a GitHub token; separate workflow steps validate their
