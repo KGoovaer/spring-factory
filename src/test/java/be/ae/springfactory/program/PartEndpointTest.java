@@ -116,6 +116,11 @@ class PartEndpointTest {
             "{\"exerciseId\":\"%s\",\"sets\":1,\"reps\":5,\"bellKg\":16,\"side\":\"UP\"}"
                 .formatted(SWING)))
         .andExpect(status().isBadRequest());
+    mvc.perform(json(post("/api/sessions/{id}/prescriptions", sessionId),
+            "{\"exerciseId\":\"%s\",\"sets\":1,\"reps\":5,\"bellKg\":16,\"minute\":121}"
+                .formatted(SWING)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.detail").value("Invalid request content."));
   }
 
   private static RequestBuilder json(

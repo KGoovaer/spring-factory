@@ -1,5 +1,6 @@
 package be.ae.springfactory.program;
 
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -11,7 +12,8 @@ import java.util.UUID;
  * The body of POST /api/sessions/{id}/prescriptions and /api/sessions/{id}/parts/{number}/
  * prescriptions. side (LEFT, RIGHT or EACH) may be left out; bellKg is left out (or null) for a
  * bodyweight Exercise; holdSeconds is given only for a hold Exercise and workSeconds only for a
- * timed one; minute only in an EMOM Part; restSeconds may be left out.
+ * timed one; minute (at most 120, the longest EMOM) only in an EMOM Part; restSeconds may be left
+ * out.
  */
 record AddPrescriptionRequest(
     @NotNull UUID exerciseId,
@@ -22,7 +24,7 @@ record AddPrescriptionRequest(
     @Min(1) Integer workSeconds,
     @Positive BigDecimal bellKg,
     @PositiveOrZero Integer restSeconds,
-    @Min(1) Integer minute) {
+    @Min(1) @Max(120) Integer minute) {
 
   Prescription toPrescription() {
     return new Prescription(
