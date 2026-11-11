@@ -26,6 +26,7 @@ export interface SetToLog {
   bellKg: number | null;
   restSeconds: number | null;
   place: string | null;
+  done: boolean;
 }
 
 /** A row of a Part on the form: a Set to tick off, or rest between Parts or in an EMOM. */
@@ -50,8 +51,9 @@ export interface SessionToLog {
   /** The date of the Logged Session, or null when the Session was not logged yet. */
   loggedDate: string | null;
   /**
-   * The planned Parts with one row per Set and rest, or, once there is a
-   * Logged Session, one Part of the logged Sets.
+   * The planned Parts with one row per Set and rest. Once there is a Logged
+   * Session, its Sets fill the planned rows they match, and a last Part holds
+   * any Sets that match none.
    */
   parts: PartToLog[];
 }
@@ -104,11 +106,10 @@ interface LoggedSessionResponse {
 
 /**
  * Loads a Session of a Program for logging: the Program, the Exercise catalog
- * and the Logged Session, if any. A logged Session starts from its logged
- * Sets, so the Lifter corrects what was saved; otherwise every Part lays out
- * its Sets: once in a Part of straight Sets, once per Round in a Rounds Part,
+ * and the Logged Session, if any. Every Part lays out its planned Sets: once in a Part of straight Sets, once per Round in a Rounds Part,
  * and minute by minute in an EMOM, where a minute without Prescriptions is a
- * rest minute. Throws ApiError when a call fails, and an Error when the
+ * rest minute. A logged Session fills those rows with its logged Sets, so the
+ * Lifter corrects what was saved where it was planned. Throws ApiError when a call fails, and an Error when the
  * Program has no such Session.
  */
 export async function loadSessionToLog(
@@ -130,29 +131,7 @@ export async function loadSessionToLog(
       timed: false,
     };
   const planned = place.session.parts.map((part) => plannedPart(part, exercise));
-  const plannedSets = planned.flatMap((part) =>
-    part.rows.flatMap((row) => (row.kind === "set" ? [row.set] : [])),
-  );
-  const parts: PartToLog[] = logged
-    ? [
-        {
-          title: "Logged Sets",
-          rows: logged.sets.map((set, index) => ({
-            kind: "set",
-            set: {
-              exercise: exercise(set.exerciseId),
-              reps: set.reps,
-              side: set.side,
-              holdSeconds: set.holdSeconds,
-              workSeconds: set.workSeconds,
-              bellKg: set.bellKg,
-              restSeconds: plannedRest(plannedSets, logged.sets, index),
-              place: null,
-            },
-          })),
-        },
-      ]
-    : planned;
+  const parts = logged ? withLoggedSets(planned, logged.sets, exercise) : planned;
   return {
     programId: program.id,
     programName: program.name,
@@ -179,6 +158,7 @@ function plannedPart(part: PartResponse, exercise: (id: string) => ExerciseInfo)
         bellKg: prescription.bellKg,
         restSeconds: prescription.restSeconds,
         place,
+        done: false,
       },
     }));
   const title = partTitle(part);
@@ -251,17 +231,51 @@ function logPath(sessionId: string): string {
 }
 
 /**
- * The rest planned after the logged Set at `index`: the rest of the planned Set
- * of the same Exercise on the same Side in the same place (its first, second…
- * such Set), or of its last planned one when more were logged than planned.
+ * The planned Parts with the logged Sets in them: each logged Set, in order,
+ * takes the first planned Set row not yet taken of the same Exercise on the
+ * same Side, which it marks done with what was logged. The planned rest and
+ * place stay. Logged Sets that find no such row follow in a Part of their own.
  */
-function plannedRest(planned: SetToLog[], logged: LoggedSetInput[], index: number): number | null {
-  const { exerciseId, side } = logged[index];
-  const nth = logged
-    .slice(0, index)
-    .filter((set) => set.exerciseId === exerciseId && set.side === side).length;
-  const same = planned.filter((set) => set.exercise.id === exerciseId && set.side === side);
-  return same[Math.min(nth, same.length - 1)]?.restSeconds ?? null;
+function withLoggedSets(
+  planned: PartToLog[],
+  logged: LoggedSetInput[],
+  exercise: (id: string) => ExerciseInfo,
+): PartToLog[] {
+  const parts = planned.map((part) => ({ ...part, rows: [...part.rows] }));
+  const rows = parts.flatMap((part) =>
+    part.rows.map((row, index) => ({ part, index, row })),
+  );
+  const extra: RowToLog[] = [];
+  for (const set of logged) {
+    const free = rows.find(
+      ({ row }) =>
+        row.kind === "set" &&
+        !row.set.done &&
+        row.set.exercise.id === set.exerciseId &&
+        row.set.side === set.side,
+    );
+    const done = (base: SetToLog | null): RowToLog => ({
+      kind: "set",
+      set: {
+        exercise: exercise(set.exerciseId),
+        reps: set.reps,
+        side: set.side,
+        holdSeconds: set.holdSeconds,
+        workSeconds: set.workSeconds,
+        bellKg: set.bellKg,
+        restSeconds: base?.restSeconds ?? null,
+        place: base?.place ?? null,
+        done: true,
+      },
+    });
+    if (free && free.row.kind === "set") {
+      free.row = done(free.row.set);
+      free.part.rows[free.index] = free.row;
+    } else {
+      extra.push(done(null));
+    }
+  }
+  return extra.length > 0 ? [...parts, { title: "Sets not in the plan", rows: extra }] : parts;
 }
 
 async function findLoggedSession(sessionId: string): Promise<LoggedSessionResponse | null> {

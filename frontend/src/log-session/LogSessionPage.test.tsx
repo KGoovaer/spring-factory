@@ -388,7 +388,7 @@ describe("LogSessionPage", () => {
     expect(fetch.mock.calls.filter(([, init]) => init?.method === "PUT")).toHaveLength(0);
   });
 
-  it("opens a Logged Session with its own Sets and corrects it", async () => {
+  it("opens a Logged Session with its Sets done in their planned rows and corrects it", async () => {
     const fetch = serve(
       notLogged({
         "GET /api/sessions/s1/log": [200, LOGGED],
@@ -399,11 +399,17 @@ describe("LogSessionPage", () => {
     await screen.findByRole("heading", { name: "Week 1 · Session 2" });
 
     expect(screen.getByLabelText("Date")).toHaveValue("2026-11-08");
-    expect(screen.getAllByRole("row", { name: /^Set \d+$/ })).toHaveLength(1);
+    expect(screen.getAllByRole("row", { name: /^Set \d+$/ })).toHaveLength(3);
+    expect(screen.getByLabelText("Set 1 Reps")).toHaveValue(8);
     expect(screen.getByRole("button", { name: "Set 1 done" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
+    expect(screen.getByRole("button", { name: "Set 2 done" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    expect(screen.getByText("1 of 3 Sets done")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Set 1 Bell"), {
       target: { value: "16" },
     });
@@ -466,7 +472,7 @@ describe("LogSessionPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("keeps the rest planned for the Side of each logged Set", async () => {
+  it("puts each logged Set in the planned row of its Side", async () => {
     const swing = (side: string) => ({
       exerciseId: SWING,
       reps: 8,
@@ -486,12 +492,14 @@ describe("LogSessionPage", () => {
     renderPage("/programs/p1/sessions/s4/log");
     await screen.findByRole("heading", { name: "Week 1 · Session 5" });
 
-    expect(
-      within(screen.getByRole("row", { name: "Set 1" })).getByText("90 s"),
-    ).toBeInTheDocument();
-    expect(
-      within(screen.getByRole("row", { name: "Set 2" })).getByText("30 s"),
-    ).toBeInTheDocument();
+    // Planned Left, then Right: each logged Set fills the row of its Side.
+    const left = screen.getByRole("row", { name: "Set 1" });
+    expect(within(left).getByText("Left")).toBeInTheDocument();
+    expect(within(left).getByText("30 s")).toBeInTheDocument();
+    const right = screen.getByRole("row", { name: "Set 2" });
+    expect(within(right).getByText("Right")).toBeInTheDocument();
+    expect(within(right).getByText("90 s")).toBeInTheDocument();
+    expect(screen.getByText("2 of 2 Sets done")).toBeInTheDocument();
   });
 
   it("lays out an EMOM minute by minute, the rest between Parts and every Round", async () => {
@@ -529,6 +537,61 @@ describe("LogSessionPage", () => {
     expect(within(rounds).getAllByText("8+8")).toHaveLength(3);
     expect(within(rounds).getByText("Round 3")).toBeInTheDocument();
     expect(screen.getByText("0 of 23 Sets done")).toBeInTheDocument();
+  });
+
+  it("opens a logged EMOM in its Parts, minutes, rest and Rounds", async () => {
+    const set = (exerciseId: string, fields: Record<string, unknown>) => ({
+      exerciseId,
+      side: null,
+      holdSeconds: null,
+      workSeconds: null,
+      bellKg: null,
+      ...fields,
+    });
+    serve({
+      "GET /api/programs/p1": [200, PROGRAM],
+      "GET /api/exercises": [200, EXERCISES],
+      "GET /api/sessions/s3/log": [
+        200,
+        {
+          sessionId: "s3",
+          date: "2026-11-08",
+          sets: [
+            set(SWING, { reps: 5, side: "RIGHT", bellKg: 20 }),
+            set(PUSH_UP, { reps: 4 }),
+            set(PRESS, { reps: 8, side: "EACH", bellKg: 12 }),
+            set(PLANK, { reps: 1, holdSeconds: 30 }),
+          ],
+        },
+      ],
+    });
+    renderPage("/programs/p1/sessions/s3/log");
+    await screen.findByRole("heading", { name: "Week 1 · Session 4" });
+
+    const emom = screen.getByRole("rowgroup", {
+      name: "Part 1 · 20 min EMOM, rotating through 4 minutes",
+    });
+    expect(within(emom).getAllByText("Rest 60 s")).toHaveLength(5);
+    const first = screen.getByRole("row", { name: "Set 1" });
+    expect(within(first).getByText("Minute 1")).toBeInTheDocument();
+    expect(screen.getByLabelText("Set 1 Bell")).toHaveValue(20);
+    expect(screen.getByLabelText("Set 2 Reps")).toHaveValue(4);
+    expect(screen.getByRole("button", { name: "Set 2 done" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Set 5 done" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    expect(screen.getByRole("rowgroup", { name: "Part 2 · Rest 60 s" })).toBeInTheDocument();
+    const rounds = screen.getByRole("rowgroup", { name: "Part 3 · 3 Rounds" });
+    expect(within(within(rounds).getAllByRole("row", { name: /^Set \d+$/ })[0]).getByText(
+      "Round 1",
+    )).toBeInTheDocument();
+    const extra = screen.getByRole("rowgroup", { name: "Sets not in the plan" });
+    expect(within(extra).getByText("Plank")).toBeInTheDocument();
+    expect(screen.getByText("4 of 24 Sets done")).toBeInTheDocument();
   });
 
   it("logs a Timed Exercise with its Work time and a Set on Each side", async () => {

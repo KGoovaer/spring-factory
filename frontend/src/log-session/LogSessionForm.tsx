@@ -37,7 +37,8 @@ const COLUMNS = 8;
  * training, or fills in afterwards, with rest between them. Marking a Set done
  * starts its prescribed rest; a rest row starts its rest on demand. Only the
  * Sets marked done are logged, so only their fields are required; a Logged
- * Session opens with all of its Sets done, so saving again corrects it.
+ * Session opens with its Sets done in the rows they were planned in, so saving
+ * again corrects it.
  */
 export function LogSessionForm({ session, today }: { session: SessionToLog; today: string }) {
   const [date, setDate] = useState(session.loggedDate ?? today);
@@ -70,7 +71,7 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
         workSeconds: set.workSeconds === null ? "" : String(set.workSeconds),
         restSeconds: set.restSeconds,
         place: set.place,
-        done: session.loggedDate !== null,
+        done: set.done,
       })),
   );
   const [logged, setLogged] = useState(session.loggedDate !== null);
