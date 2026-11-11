@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 
 class ExerciseCatalogTest {
 
-  private final ExerciseCatalog catalog = new ExerciseCatalog();
+  private final ExerciseCatalog catalog = ExerciseCatalogs.seeded();
 
   @Test
   void seedsTheKettlebellExercisesThenTheBodyweightOnesInOrder() {
@@ -72,7 +72,7 @@ class ExerciseCatalogTest {
 
   @Test
   void idsAreStableAcrossInstances() {
-    assertThat(new ExerciseCatalog().all()).isEqualTo(catalog.all());
+    assertThat(ExerciseCatalogs.seeded().all()).isEqualTo(catalog.all());
     assertThat(catalog.all().get(0).id())
         .isEqualTo(UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c01"));
   }
@@ -131,7 +131,6 @@ class ExerciseCatalogTest {
     assertThat(added.equipment()).isEqualTo("Box");
     assertThat(catalog.all()).hasSize(13).last().isEqualTo(added);
     assertThat(catalog.get(added.id())).isEqualTo(added);
-    assertThat(new ExerciseCatalog().all()).hasSize(12);
   }
 
   @Test
@@ -154,5 +153,71 @@ class ExerciseCatalogTest {
         .isInstanceOf(InvalidExerciseException.class)
         .hasMessage("Sled push is done with a Bell and names no other gear, was Sled");
     assertThat(catalog.all()).hasSize(12);
+  }
+
+  @Test
+  void aNameOrGearLongerThanTheCatalogKeepsIsInvalid() {
+    String tooLong = "x".repeat(201);
+    UUID swing = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c01");
+
+    assertThatThrownBy(() -> catalog.add(tooLong, false, false, false, null))
+        .isInstanceOf(InvalidExerciseException.class)
+        .hasMessage("An Exercise name has at most 200 characters");
+    assertThatThrownBy(() -> catalog.add("Drag", true, false, false, tooLong))
+        .isInstanceOf(InvalidExerciseException.class)
+        .hasMessage("Drag names gear of at most 200 characters");
+    assertThatThrownBy(() -> catalog.rename(swing, tooLong))
+        .isInstanceOf(InvalidExerciseException.class);
+    assertThat(catalog.add("x".repeat(200), true, false, false, "y".repeat(200)).name())
+        .hasSize(200);
+  }
+
+  @Test
+  void aLifterRenamesAnExerciseKeepingItsIdClassificationAndPlace() {
+    UUID plank = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c07");
+
+    Exercise renamed = catalog.rename(plank, " Front plank ");
+
+    assertThat(renamed).isEqualTo(new Exercise(plank, "Front plank", true, true));
+    assertThat(catalog.get(plank)).isEqualTo(renamed);
+    assertThat(catalog.all()).hasSize(12).element(8).isEqualTo(renamed);
+  }
+
+  @Test
+  void aRenameKeepsNamesUniqueIgnoringCase() {
+    UUID swing = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c01");
+
+    assertThatThrownBy(() -> catalog.rename(swing, "SNATCH"))
+        .isInstanceOf(ExerciseNameTakenException.class);
+    assertThatThrownBy(() -> catalog.rename(swing, " "))
+        .isInstanceOf(InvalidExerciseException.class);
+    assertThat(catalog.rename(swing, "swing").name()).isEqualTo("swing");
+    assertThatThrownBy(() -> catalog.rename(UUID.randomUUID(), "Lunge"))
+        .isInstanceOf(ExerciseNotFoundException.class);
+  }
+
+  @Test
+  void aRemovedExerciseIsGoneAndFreesItsName() {
+    UUID snatch = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c05");
+
+    catalog.remove(snatch);
+
+    assertThat(catalog.all()).hasSize(11).extracting(Exercise::name).doesNotContain("Snatch");
+    assertThatThrownBy(() -> catalog.get(snatch)).isInstanceOf(ExerciseNotFoundException.class);
+    Exercise again = catalog.add("Snatch", false, false, false, null);
+    assertThat(again.id()).isNotEqualTo(snatch);
+    assertThat(catalog.all()).last().isEqualTo(again);
+  }
+
+  @Test
+  void aRemovedExerciseCannotBeRenamedOrRemovedAgain() {
+    UUID snatch = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c05");
+    catalog.remove(snatch);
+
+    assertThatThrownBy(() -> catalog.remove(snatch)).isInstanceOf(ExerciseNotFoundException.class);
+    assertThatThrownBy(() -> catalog.rename(snatch, "Snatch"))
+        .isInstanceOf(ExerciseNotFoundException.class);
+    assertThatThrownBy(() -> catalog.remove(UUID.randomUUID()))
+        .isInstanceOf(ExerciseNotFoundException.class);
   }
 }

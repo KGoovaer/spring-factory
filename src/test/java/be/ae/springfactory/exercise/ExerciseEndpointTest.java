@@ -1,13 +1,16 @@
 package be.ae.springfactory.exercise;
 
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +18,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -93,5 +97,163 @@ class ExerciseEndpointTest {
                 .content("{\"name\":\"Lunge %s\",\"side\":\"LEFT\"}".formatted(UUID.randomUUID())))
         .andExpect(status().isBadRequest())
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+  }
+
+  @Test
+  void aLifterRenamesAnExerciseWhichKeepsItsClassification() throws Exception {
+    String id = added("Plank hold " + UUID.randomUUID(), true, true);
+    String name = "Side plank " + UUID.randomUUID();
+
+    mvc.perform(
+            put("/api/exercises/" + id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"%s\"}".formatted(name)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(id))
+        .andExpect(jsonPath("$.name").value(name))
+        .andExpect(jsonPath("$.equipment").value("Body weight"))
+        .andExpect(jsonPath("$.hold").value(true));
+
+    mvc.perform(get("/api/exercises"))
+        .andExpect(jsonPath("$[?(@.id == '%s')].name".formatted(id)).value(name));
+  }
+
+  @Test
+  void aRenameThatTriesToChangeTheClassificationIsABadRequest() throws Exception {
+    String id = added("Halo " + UUID.randomUUID(), false, false);
+
+    mvc.perform(
+            put("/api/exercises/" + id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Halo\",\"bodyweight\":true}"))
+        .andExpect(status().isBadRequest());
+    mvc.perform(get("/api/exercises"))
+        .andExpect(jsonPath("$[?(@.id == '%s')].equipment".formatted(id)).value("Kettlebell"));
+  }
+
+  @Test
+  void aRenameToATakenNameIsAConflict() throws Exception {
+    String id = added("Halo " + UUID.randomUUID(), false, false);
+
+    mvc.perform(
+            put("/api/exercises/" + id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"swing\"}"))
+        .andExpect(status().isConflict());
+  }
+
+  @Test
+  void aRenameWithoutANameIsABadRequest() throws Exception {
+    String id = added("Halo " + UUID.randomUUID(), false, false);
+
+    mvc.perform(put("/api/exercises/" + id).contentType(MediaType.APPLICATION_JSON).content("{}"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void aRenameOfAnUnknownExerciseIsNotFound() throws Exception {
+    mvc.perform(
+            put("/api/exercises/" + UUID.randomUUID())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Halo\"}"))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void aRenameOrRemovalOfAMalformedIdIsABadRequest() throws Exception {
+    mvc.perform(
+            put("/api/exercises/not-an-id")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Halo\"}"))
+        .andExpect(status().isBadRequest());
+    mvc.perform(delete("/api/exercises/not-an-id")).andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void aLifterRemovesAnExerciseThatIsThenNoLongerListed() throws Exception {
+    String id = added("Windmill " + UUID.randomUUID(), false, false);
+
+    mvc.perform(delete("/api/exercises/" + id)).andExpect(status().isNoContent());
+
+    mvc.perform(get("/api/exercises"))
+        .andExpect(jsonPath("$[?(@.id == '%s')]".formatted(id)).isEmpty());
+    mvc.perform(delete("/api/exercises/" + id)).andExpect(status().isNotFound());
+  }
+
+  @Test
+  void anExercisePrescribedInAProgramCannotBeRemoved() throws Exception {
+    String id = added("Bear crawl " + UUID.randomUUID(), true, false);
+    String sessionId = newSessionId();
+
+    mvc.perform(
+            post("/api/sessions/{id}/prescriptions", sessionId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"exerciseId\":\"%s\",\"sets\":3,\"reps\":10}".formatted(id)))
+        .andExpect(status().isCreated());
+
+    mvc.perform(delete("/api/exercises/" + id))
+        .andExpect(status().isConflict())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+    mvc.perform(get("/api/exercises"))
+        .andExpect(jsonPath("$[?(@.id == '%s')]".formatted(id)).isNotEmpty());
+  }
+
+  @Test
+  void anExerciseInALoggedSessionCannotBeRemoved() throws Exception {
+    String id = added("Crab walk " + UUID.randomUUID(), true, false);
+    String sessionId = newSessionId();
+
+    mvc.perform(
+            post("/api/sessions/{id}/log", sessionId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"date":"2026-11-11","sets":[{"exerciseId":"%s","reps":10}]}
+                    """
+                        .formatted(id)))
+        .andExpect(status().isCreated());
+
+    mvc.perform(delete("/api/exercises/" + id)).andExpect(status().isConflict());
+  }
+
+  @Test
+  void aNameLongerThanTheCatalogKeepsIsABadRequest() throws Exception {
+    mvc.perform(
+            post("/api/exercises")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"%s\"}".formatted("x".repeat(201))))
+        .andExpect(status().isBadRequest())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+  }
+
+  private String newSessionId() throws Exception {
+    String programId =
+        read(
+            mvc.perform(
+                post("/api/programs")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"name\":\"Giant\"}")),
+            "$.id");
+    String weekId = read(mvc.perform(post("/api/programs/{id}/weeks", programId)), "$.id");
+    return read(mvc.perform(post("/api/weeks/{id}/sessions", weekId)), "$.id");
+  }
+
+  private static String read(ResultActions result, String path) throws Exception {
+    return JsonPath.read(result.andReturn().getResponse().getContentAsString(), path);
+  }
+
+  private String added(String name, boolean bodyweight, boolean hold) throws Exception {
+    String body =
+        mvc.perform(
+                post("/api/exercises")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        "{\"name\":\"%s\",\"bodyweight\":%s,\"hold\":%s}"
+                            .formatted(name, bodyweight, hold)))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    return JsonPath.read(body, "$.id");
   }
 }

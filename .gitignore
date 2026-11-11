@@ -20,3 +20,6 @@
 # Frontend
 /frontend/node_modules/
 /frontend/node/
+
+# Embedded database
+/data/

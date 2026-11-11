@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
 import be.ae.springfactory.exercise.ExerciseCatalog;
+import be.ae.springfactory.exercise.ExerciseCatalogs;
 import be.ae.springfactory.log.LoggedSessions;
 import be.ae.springfactory.log.LoggedSet;
 import be.ae.springfactory.program.Prescription;
@@ -22,7 +23,7 @@ class WeekStatisticsTest {
 
   private static final UUID SWING = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c01");
 
-  private final ExerciseCatalog catalog = new ExerciseCatalog();
+  private final ExerciseCatalog catalog = ExerciseCatalogs.seeded();
   private final Programs programs = new Programs(catalog);
   private final LoggedSessions loggedSessions = new LoggedSessions(programs, catalog);
   private final WeekStatistics statistics = new WeekStatistics(programs, loggedSessions);

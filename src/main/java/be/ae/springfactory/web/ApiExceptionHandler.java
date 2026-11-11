@@ -1,5 +1,6 @@
 package be.ae.springfactory.web;
 
+import be.ae.springfactory.exercise.ExerciseInUseException;
 import be.ae.springfactory.exercise.ExerciseNameTakenException;
 import be.ae.springfactory.exercise.ExerciseNotFoundException;
 import be.ae.springfactory.exercise.InvalidExerciseException;
@@ -49,7 +50,11 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
   }
 
-  @ExceptionHandler({SessionAlreadyLoggedException.class, ExerciseNameTakenException.class})
+  @ExceptionHandler({
+    SessionAlreadyLoggedException.class,
+    ExerciseNameTakenException.class,
+    ExerciseInUseException.class
+  })
   ProblemDetail conflict(RuntimeException e) {
     return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
   }

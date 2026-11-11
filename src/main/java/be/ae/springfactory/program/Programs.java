@@ -2,6 +2,7 @@ package be.ae.springfactory.program;
 
 import be.ae.springfactory.exercise.Exercise;
 import be.ae.springfactory.exercise.ExerciseCatalog;
+import be.ae.springfactory.exercise.ExerciseUsage;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -20,7 +21,7 @@ import org.springframework.stereotype.Component;
  * same Week number, and no added Session or Prescription is lost.
  */
 @Component
-public class Programs {
+public class Programs implements ExerciseUsage {
 
   private final Map<UUID, Program> programs = new ConcurrentHashMap<>();
   private final Map<UUID, UUID> programOfWeek = new ConcurrentHashMap<>();
@@ -143,6 +144,16 @@ public class Programs {
         .distinct()
         .sorted()
         .toList();
+  }
+
+  /** Whether a Prescription of any Program is of the Exercise with this id. */
+  @Override
+  public boolean uses(UUID exerciseId) {
+    return programs.values().stream()
+        .flatMap(program -> program.weeks().stream())
+        .flatMap(week -> week.sessions().stream())
+        .flatMap(session -> session.prescriptions().stream())
+        .anyMatch(prescription -> prescription.exerciseId().equals(exerciseId));
   }
 
   private void fitsExercise(Prescription prescription) {

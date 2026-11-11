@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import be.ae.springfactory.exercise.ExerciseCatalog;
+import be.ae.springfactory.exercise.ExerciseCatalogs;
 import be.ae.springfactory.program.Part;
 import be.ae.springfactory.program.Prescription;
 import be.ae.springfactory.program.Programs;
@@ -24,7 +25,7 @@ class ScoresTest {
   private static final BigDecimal BELL = new BigDecimal("16");
   private static final LocalDate DAY = LocalDate.of(2026, 11, 11);
 
-  private final ExerciseCatalog catalog = new ExerciseCatalog();
+  private final ExerciseCatalog catalog = ExerciseCatalogs.seeded();
   private final Programs programs = new Programs(catalog);
   private final LoggedSessions loggedSessions = new LoggedSessions(programs, catalog);
 
