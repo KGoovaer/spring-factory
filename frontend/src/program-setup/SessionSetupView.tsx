@@ -219,7 +219,7 @@ function AddPrescriptionForm({
     change(() =>
       addPrescription(sessionId, part.number, {
         exerciseId,
-        sets: Number(sets),
+        sets: emom ? 1 : Number(sets),
         reps: Number(reps),
         side: side === "" ? null : side,
         holdSeconds: exercise?.hold ? optional(time) : null,
@@ -256,7 +256,7 @@ function AddPrescriptionForm({
           </select>
         </label>
       )}
-      <NumberField label="Sets" value={sets} onChange={setSets} />
+      {!emom && <NumberField label="Sets" value={sets} onChange={setSets} />}
       <NumberField label="Reps" value={reps} onChange={setReps} />
       <label>
         Side{" "}

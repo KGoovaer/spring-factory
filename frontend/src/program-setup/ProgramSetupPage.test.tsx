@@ -185,7 +185,7 @@ describe("ProgramSetupPage", () => {
     });
   });
 
-  it("asks a Timed Exercise in an EMOM for its Work time and minute", async () => {
+  it("asks a Timed Exercise in an EMOM for its Work time and minute, and one Set", async () => {
     const fetch = serve({
       "GET /api/programs/p1": [200, PROGRAM],
       "GET /api/exercises": [200, EXERCISES],
@@ -198,6 +198,7 @@ describe("ProgramSetupPage", () => {
     fireEvent.change(within(form).getByLabelText("Exercise"), { target: { value: SKIPPING } });
     expect(within(form).queryByLabelText("Bell (kg)")).not.toBeInTheDocument();
     expect(within(form).queryByLabelText("Rest (s)")).not.toBeInTheDocument();
+    expect(within(form).queryByLabelText("Sets")).not.toBeInTheDocument();
     fireEvent.change(within(form).getByLabelText("Minute"), { target: { value: "4" } });
     fireEvent.change(within(form).getByLabelText("Reps"), { target: { value: "1" } });
     fireEvent.change(within(form).getByLabelText("Work time (s)"), { target: { value: "40" } });
@@ -206,6 +207,7 @@ describe("ProgramSetupPage", () => {
     await vi.waitFor(() =>
       expect(sent(fetch, "POST", "/api/sessions/s1/parts/1/prescriptions")).toMatchObject({
         exerciseId: SKIPPING,
+        sets: 1,
         workSeconds: 40,
         bellKg: null,
         minute: 4,
