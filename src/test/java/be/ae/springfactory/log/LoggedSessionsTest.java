@@ -138,6 +138,31 @@ class LoggedSessionsTest {
   }
 
   @Test
+  void aLoggedSessionKeepsTheSessionTimeTheLifterTimedAndACorrectionReplacesIt() {
+    UUID sessionId = newSession().id();
+
+    LoggedSession logged = loggedSessions.log(sessionId, DAY, oneSet(), List.of(), 2_710);
+
+    assertThat(logged.sessionSeconds()).isEqualTo(2_710);
+    assertThat(loggedSessions.get(sessionId).sessionSeconds()).isEqualTo(2_710);
+    assertThat(loggedSessions.correct(sessionId, DAY, oneSet(), List.of(), 2_800).sessionSeconds())
+        .isEqualTo(2_800);
+    assertThat(loggedSessions.correct(sessionId, DAY, oneSet()).sessionSeconds()).isNull();
+  }
+
+  @Test
+  void aSessionTimeIsNeverBelowZeroAndARejectedOneStoresNothing() {
+    UUID sessionId = newSession().id();
+
+    assertThatThrownBy(() -> loggedSessions.log(sessionId, DAY, oneSet(), List.of(), -1))
+        .isInstanceOf(InvalidLoggedSessionException.class)
+        .hasMessage("A Session time is never below 0 seconds");
+    assertThat(loggedSessions.find(sessionId)).isEmpty();
+    assertThat(loggedSessions.log(sessionId, DAY, oneSet(), List.of(), 0).sessionSeconds())
+        .isZero();
+  }
+
+  @Test
   void onlyALoggedSessionCanBeCorrected() {
     UUID sessionId = newSession().id();
 

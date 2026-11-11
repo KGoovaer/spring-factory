@@ -162,9 +162,47 @@ body {
   font-size: 0.85rem;
 }
 
-.rest-timer {
+.log-timers {
   position: sticky;
   top: 0;
+  z-index: 1;
+  background: #f6f7f9;
+  padding-top: 0.5rem;
+}
+
+.session-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid #dde1e6;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.session-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.session-timer .session-clock {
+  font-size: 1.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.session-bar button {
+  padding: 0.4rem 0.9rem;
+}
+
+.session-bar .primary {
+  font-weight: 600;
+}
+
+.rest-timer {
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -246,6 +284,28 @@ body {
   font-size: 0.75rem;
   font-weight: 400;
   color: #4b5563;
+}
+
+.log-sets .minute-heading th {
+  background: #f3f5f8;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #374151;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+  box-shadow: inset 4px 0 0 #9aa4b1;
+}
+
+.log-sets tr.in-minute > th:first-child {
+  box-shadow: inset 4px 0 0 #9aa4b1;
+}
+
+.log-sets tr.current {
+  background: #e8f0fe;
+}
+
+.log-sets tr.current > :first-child {
+  box-shadow: inset 4px 0 0 #2563eb;
 }
 
 .log-sets .rest-row td,

@@ -340,6 +340,23 @@ class LoggedSessionEndpointTest {
     }
   }
 
+  @Test
+  void keepsTheSessionTimeAndRejectsOneBelowZero() throws Exception {
+    String sessionId = newSessionId();
+    String timed =
+        "{\"date\":\"2026-11-07\",\"sessionSeconds\":%d,\"sets\":[{\"exerciseId\":\"%s\",\"reps\":10,\"bellKg\":24}]}";
+
+    mvc.perform(log(sessionId, timed.formatted(-1, SWING))).andExpect(status().isBadRequest());
+    mvc.perform(log(sessionId, oneSet("\"bellKg\":24")))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.sessionSeconds").value(nullValue()));
+    mvc.perform(correct(sessionId, timed.formatted(2710, SWING)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.sessionSeconds").value(2710));
+    mvc.perform(get("/api/sessions/{id}/log", sessionId))
+        .andExpect(jsonPath("$.sessionSeconds").value(2710));
+  }
+
   private static String oneSet(String bell) {
     return "{\"date\":\"2026-11-07\",\"sets\":[{\"exerciseId\":\"%s\",\"reps\":10,%s}]}"
         .formatted(SWING, bell);

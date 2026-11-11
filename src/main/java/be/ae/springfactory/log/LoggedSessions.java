@@ -53,7 +53,21 @@ public class LoggedSessions {
    */
   public LoggedSession log(
       UUID sessionId, LocalDate date, List<LoggedSet> sets, List<Score> scores) {
-    LoggedSession logged = validated(sessionId, date, sets, scores);
+    return log(sessionId, date, sets, scores, null);
+  }
+
+  /**
+   * Logs the Session as {@link #log(UUID, LocalDate, List, List)} does, with the Session time the
+   * Lifter timed, in whole seconds, or null when they did not time it. Also throws {@link
+   * InvalidLoggedSessionException} for a Session time below 0.
+   */
+  public LoggedSession log(
+      UUID sessionId,
+      LocalDate date,
+      List<LoggedSet> sets,
+      List<Score> scores,
+      Integer sessionSeconds) {
+    LoggedSession logged = validated(sessionId, date, sets, scores, sessionSeconds);
     if (logs.putIfAbsent(sessionId, logged) != null) {
       throw new SessionAlreadyLoggedException();
     }
@@ -77,7 +91,20 @@ public class LoggedSessions {
    */
   public LoggedSession correct(
       UUID sessionId, LocalDate date, List<LoggedSet> sets, List<Score> scores) {
-    LoggedSession corrected = validated(sessionId, date, sets, scores);
+    return correct(sessionId, date, sets, scores, null);
+  }
+
+  /**
+   * Corrects the Logged Session as {@link #correct(UUID, LocalDate, List, List)} does, replacing its
+   * Session time too, as {@link #log(UUID, LocalDate, List, List, Integer)} takes it.
+   */
+  public LoggedSession correct(
+      UUID sessionId,
+      LocalDate date,
+      List<LoggedSet> sets,
+      List<Score> scores,
+      Integer sessionSeconds) {
+    LoggedSession corrected = validated(sessionId, date, sets, scores, sessionSeconds);
     if (logs.replace(sessionId, corrected) == null) {
       throw new LoggedSessionNotFoundException(sessionId);
     }
@@ -89,9 +116,13 @@ public class LoggedSessions {
    * the catalog; throws as {@link #log} documents otherwise.
    */
   private LoggedSession validated(
-      UUID sessionId, LocalDate date, List<LoggedSet> sets, List<Score> scores) {
+      UUID sessionId,
+      LocalDate date,
+      List<LoggedSet> sets,
+      List<Score> scores,
+      Integer sessionSeconds) {
     Session session = programs.session(sessionId);
-    LoggedSession logged = new LoggedSession(sessionId, date, sets, scores);
+    LoggedSession logged = new LoggedSession(sessionId, date, sets, scores, sessionSeconds);
     for (Score score : logged.scores()) {
       fits(session, score);
     }
