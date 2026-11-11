@@ -11,10 +11,15 @@ import java.util.UUID;
  * A Session as actually performed on a date: the Sets the Lifter really did, in order, and the
  * Score of each AMRAP Part done. It refers to the planned Session by id and never changes it. It
  * has a date (any date, also one in the future) and at least one Set or Score, and at most one
- * Score per Part. Immutable.
+ * Score per Part. Its Session time, how long the Lifter trained in whole seconds, is null when the
+ * Lifter did not time the Session, and never below 0. Immutable.
  */
 public record LoggedSession(
-    UUID sessionId, LocalDate date, List<LoggedSet> sets, List<Score> scores) {
+    UUID sessionId,
+    LocalDate date,
+    List<LoggedSet> sets,
+    List<Score> scores,
+    Integer sessionSeconds) {
   public LoggedSession {
     if (sessionId == null) {
       throw new InvalidLoggedSessionException("A Logged Session needs a Session");
@@ -36,8 +41,16 @@ public record LoggedSession(
     if (scores.stream().map(Score::part).distinct().count() < scores.size()) {
       throw new InvalidLoggedSessionException("A Part has at most one Score");
     }
+    if (sessionSeconds != null && sessionSeconds < 0) {
+      throw new InvalidLoggedSessionException("A Session time is never below 0 seconds");
+    }
     sets = List.copyOf(sets);
     scores = List.copyOf(scores);
+  }
+
+  /** A Logged Session without a Session time. */
+  public LoggedSession(UUID sessionId, LocalDate date, List<LoggedSet> sets, List<Score> scores) {
+    this(sessionId, date, sets, scores, null);
   }
 
   /** A Logged Session of Sets only, without Scores. */
