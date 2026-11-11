@@ -6,10 +6,13 @@ import type {
   ProgramResponse,
   Side,
 } from "../api/programs";
-import { partTitle, repsLabel, sideLabel } from "../api/programs";
+import { partTitle, prescriptionLine, repsLabel } from "../api/programs";
 
 /** An Exercise as the form needs it: whether its Sets take a Bell, a Hold time or a Work time. */
-export type ExerciseInfo = Pick<ExerciseResponse, "id" | "name" | "bodyweight" | "hold" | "timed">;
+export type ExerciseInfo = Pick<
+  ExerciseResponse,
+  "id" | "name" | "bodyweight" | "hold" | "timed"
+>;
 
 /**
  * One Set row on the form: what was planned or logged, as the starting values
@@ -33,7 +36,8 @@ export interface SetToLog {
 
 /** A row of a Part on the form: a Set to tick off, or rest between Parts or in an EMOM. */
 export type RowToLog =
-  { kind: "set"; set: SetToLog } | { kind: "rest"; seconds: number; place: string | null };
+  | { kind: "set"; set: SetToLog }
+  | { kind: "rest"; seconds: number; place: string | null };
 
 /**
  * An AMRAP as the form lays it out: one Round, a line per Prescription, and
@@ -139,10 +143,17 @@ export function doneSets(entries: SetEntry[]): LoggedSetInput[] {
       reps: Number(entry.reps),
       side: entry.side,
       holdSeconds:
-        entry.exercise.hold && entry.holdSeconds !== "" ? Number(entry.holdSeconds) : null,
+        entry.exercise.hold && entry.holdSeconds !== ""
+          ? Number(entry.holdSeconds)
+          : null,
       workSeconds:
-        entry.exercise.timed && entry.workSeconds !== "" ? Number(entry.workSeconds) : null,
-      bellKg: !entry.exercise.bodyweight && entry.bellKg !== "" ? Number(entry.bellKg) : null,
+        entry.exercise.timed && entry.workSeconds !== ""
+          ? Number(entry.workSeconds)
+          : null,
+      bellKg:
+        !entry.exercise.bodyweight && entry.bellKg !== ""
+          ? Number(entry.bellKg)
+          : null,
     }));
 }
 
@@ -163,7 +174,7 @@ interface LoggedSessionResponse {
  */
 export async function loadSessionToLog(
   programId: string,
-  sessionId: string,
+  sessionId: string
 ): Promise<SessionToLog> {
   const [program, exercises, logged] = await Promise.all([
     getJson<ProgramResponse>(`/api/programs/${encodeURIComponent(programId)}`),
@@ -180,9 +191,11 @@ export async function loadSessionToLog(
       timed: false,
     };
   const planned = place.session.parts.map((part) =>
-    withScore(plannedPart(part, exercise), logged?.scores ?? []),
+    withScore(plannedPart(part, exercise), logged?.scores ?? [])
   );
-  const parts = logged ? withLoggedSets(planned, logged.sets, exercise) : planned;
+  const parts = logged
+    ? withLoggedSets(planned, logged.sets, exercise)
+    : planned;
   return {
     programId: program.id,
     programName: program.name,
@@ -196,15 +209,23 @@ export async function loadSessionToLog(
   };
 }
 
-function plannedPart(part: PartResponse, exercise: (id: string) => ExerciseInfo): PartToLog {
-  const sets = (prescription: PrescriptionResponse, place: string | null): RowToLog[] =>
+function plannedPart(
+  part: PartResponse,
+  exercise: (id: string) => ExerciseInfo
+): PartToLog {
+  const sets = (
+    prescription: PrescriptionResponse,
+    place: string | null
+  ): RowToLog[] =>
     Array.from({ length: prescription.sets }, () => ({
       kind: "set",
       set: {
         exercise: exercise(prescription.exerciseId),
         reps: prescription.reps,
         repsRange:
-          prescription.repsMax === null ? null : repsLabel(prescription.reps, prescription.repsMax),
+          prescription.repsMax === null
+            ? null
+            : repsLabel(prescription.reps, prescription.repsMax),
         side: prescription.side,
         holdSeconds: prescription.holdSeconds,
         workSeconds: prescription.workSeconds,
@@ -218,12 +239,15 @@ function plannedPart(part: PartResponse, exercise: (id: string) => ExerciseInfo)
   const base = { title, clock: null, amrap: null };
   switch (part.format) {
     case "SETS":
-      return { ...base, rows: part.prescriptions.flatMap((p) => sets(p, null)) };
+      return {
+        ...base,
+        rows: part.prescriptions.flatMap((p) => sets(p, null)),
+      };
     case "ROUNDS":
       return {
         ...base,
         rows: Array.from({ length: part.rounds ?? 1 }, (_, round) =>
-          part.prescriptions.flatMap((p) => sets(p, `Round ${round + 1}`)),
+          part.prescriptions.flatMap((p) => sets(p, `Round ${round + 1}`))
         ).flat(),
       };
     case "EMOM": {
@@ -231,13 +255,18 @@ function plannedPart(part: PartResponse, exercise: (id: string) => ExerciseInfo)
       return {
         ...base,
         clock: { format: "EMOM", minutes: part.minutes ?? 1 },
-        rows: Array.from({ length: part.minutes ?? 1 }, (_, index): RowToLog[] => {
-          const place = `Minute ${index + 1}`;
-          const inMinute = part.prescriptions.filter((p) => p.minute === (index % rotation) + 1);
-          return inMinute.length === 0
-            ? [{ kind: "rest", seconds: 60, place }]
-            : inMinute.flatMap((p) => sets(p, place));
-        }).flat(),
+        rows: Array.from(
+          { length: part.minutes ?? 1 },
+          (_, index): RowToLog[] => {
+            const place = `Minute ${index + 1}`;
+            const inMinute = part.prescriptions.filter(
+              (p) => p.minute === (index % rotation) + 1
+            );
+            return inMinute.length === 0
+              ? [{ kind: "rest", seconds: 60, place }]
+              : inMinute.flatMap((p) => sets(p, place));
+          }
+        ).flat(),
       };
     }
     case "AMRAP":
@@ -247,7 +276,9 @@ function plannedPart(part: PartResponse, exercise: (id: string) => ExerciseInfo)
         clock: { format: "AMRAP", minutes: part.minutes ?? 1 },
         amrap: {
           part: part.number,
-          round: part.prescriptions.map((p) => roundLine(p, exercise(p.exerciseId))),
+          round: part.prescriptions.map((p) =>
+            roundLine(p, exercise(p.exerciseId))
+          ),
           rounds: null,
           extraReps: null,
         },
@@ -261,31 +292,28 @@ function plannedPart(part: PartResponse, exercise: (id: string) => ExerciseInfo)
 }
 
 /** One Prescription of an AMRAP Round as a line: "3-4+3-4 Clean · 12 kg". */
-function roundLine(prescription: PrescriptionResponse, exercise: ExerciseInfo): string {
-  const range = repsLabel(prescription.reps, prescription.repsMax);
-  const reps = prescription.side === "EACH" ? sideLabel("EACH", range) : range;
+function roundLine(
+  prescription: PrescriptionResponse,
+  exercise: ExerciseInfo
+): string {
   const sets = prescription.sets > 1 ? `${prescription.sets} × ` : "";
-  const line = [`${sets}${reps} ${exercise.name}`];
-  if (prescription.side === "LEFT" || prescription.side === "RIGHT") {
-    line.push(sideLabel(prescription.side, prescription.reps));
-  }
-  if (prescription.holdSeconds !== null) {
-    line.push(`hold ${prescription.holdSeconds} s`);
-  }
-  if (prescription.workSeconds !== null) {
-    line.push(`${prescription.workSeconds} s`);
-  }
-  if (prescription.bellKg !== null) {
-    line.push(`${prescription.bellKg} kg`);
-  }
-  return line.join(" · ");
+  return `${sets}${prescriptionLine(prescription, exercise.name)}`;
 }
 
 /** The AMRAP Part with the logged Score of its number, if there is one. */
 function withScore(part: PartToLog, scores: ScoreInput[]): PartToLog {
-  const score = part.amrap && scores.find((candidate) => candidate.part === part.amrap?.part);
+  const score =
+    part.amrap &&
+    scores.find((candidate) => candidate.part === part.amrap?.part);
   return part.amrap && score
-    ? { ...part, amrap: { ...part.amrap, rounds: score.rounds, extraReps: score.extraReps } }
+    ? {
+        ...part,
+        amrap: {
+          ...part.amrap,
+          rounds: score.rounds,
+          extraReps: score.extraReps,
+        },
+      }
     : part;
 }
 
@@ -294,7 +322,9 @@ function withScore(part: PartToLog, scores: ScoreInput[]): PartToLog {
  * it can: a Kettlebell Exercise always has a Bell above 0 kg.
  */
 export function bellWeightProblem(bellKg: string): string {
-  return bellKg !== "" && !(Number(bellKg) > 0) ? "A Bell weighs more than 0 kg." : "";
+  return bellKg !== "" && !(Number(bellKg) > 0)
+    ? "A Bell weighs more than 0 kg."
+    : "";
 }
 
 /**
@@ -307,7 +337,7 @@ export async function logSession(
   sessionId: string,
   date: string,
   sets: LoggedSetInput[],
-  scores: ScoreInput[] = [],
+  scores: ScoreInput[] = []
 ): Promise<void> {
   await sendJson("POST", logPath(sessionId), { date, sets, scores });
 }
@@ -320,7 +350,7 @@ export async function correctLoggedSession(
   sessionId: string,
   date: string,
   sets: LoggedSetInput[],
-  scores: ScoreInput[] = [],
+  scores: ScoreInput[] = []
 ): Promise<void> {
   await sendJson("PUT", logPath(sessionId), { date, sets, scores });
 }
@@ -338,11 +368,11 @@ function logPath(sessionId: string): string {
 function withLoggedSets(
   planned: PartToLog[],
   logged: LoggedSetInput[],
-  exercise: (id: string) => ExerciseInfo,
+  exercise: (id: string) => ExerciseInfo
 ): PartToLog[] {
   const parts = planned.map((part) => ({ ...part, rows: [...part.rows] }));
   const rows = parts.flatMap((part) =>
-    part.rows.map((row, index) => ({ part, index, row })),
+    part.rows.map((row, index) => ({ part, index, row }))
   );
   const extra: RowToLog[] = [];
   for (const set of logged) {
@@ -351,7 +381,7 @@ function withLoggedSets(
         row.kind === "set" &&
         !row.set.done &&
         row.set.exercise.id === set.exerciseId &&
-        row.set.side === set.side,
+        row.set.side === set.side
     );
     const done = (base: SetToLog | null): RowToLog => ({
       kind: "set",
@@ -376,11 +406,21 @@ function withLoggedSets(
     }
   }
   return extra.length > 0
-    ? [...parts, { title: "Sets not in the plan", rows: extra, clock: null, amrap: null }]
+    ? [
+        ...parts,
+        {
+          title: "Sets not in the plan",
+          rows: extra,
+          clock: null,
+          amrap: null,
+        },
+      ]
     : parts;
 }
 
-async function findLoggedSession(sessionId: string): Promise<LoggedSessionResponse | null> {
+async function findLoggedSession(
+  sessionId: string
+): Promise<LoggedSessionResponse | null> {
   try {
     return await getJson<LoggedSessionResponse>(logPath(sessionId));
   } catch (error) {
@@ -393,7 +433,9 @@ async function findLoggedSession(sessionId: string): Promise<LoggedSessionRespon
 
 function findSession(program: ProgramResponse, sessionId: string) {
   for (const week of program.weeks) {
-    const index = week.sessions.findIndex((session) => session.id === sessionId);
+    const index = week.sessions.findIndex(
+      (session) => session.id === sessionId
+    );
     if (index >= 0) {
       return {
         weekNumber: week.number,

@@ -84,6 +84,36 @@ export function repsLabel(reps: number, repsMax: number | null): string {
 }
 
 /**
+ * A Prescription of the Exercise `name` as a Lifter writes it, without its
+ * Sets: "8+8 Clean to waiter press · 16 kg", "5 Swing · Right · 16 kg",
+ * "3-4 Swing · 24 kg · rest 60 s".
+ */
+export function prescriptionLine(
+  prescription: PrescriptionResponse,
+  name: string
+): string {
+  const range = repsLabel(prescription.reps, prescription.repsMax);
+  const reps = prescription.side === "EACH" ? sideLabel("EACH", range) : range;
+  const line = [`${reps} ${name}`];
+  if (prescription.side === "LEFT" || prescription.side === "RIGHT") {
+    line.push(sideLabel(prescription.side, prescription.reps));
+  }
+  if (prescription.holdSeconds !== null) {
+    line.push(`hold ${prescription.holdSeconds} s`);
+  }
+  if (prescription.workSeconds !== null) {
+    line.push(`${prescription.workSeconds} s`);
+  }
+  if (prescription.bellKg !== null) {
+    line.push(`${prescription.bellKg} kg`);
+  }
+  if (prescription.restSeconds) {
+    line.push(`rest ${prescription.restSeconds} s`);
+  }
+  return line.join(" · ");
+}
+
+/**
  * How a Part is titled, on the setup and the log page alike: "Part 1 · 20 min
  * EMOM, rotating through 4 minutes", "Part 2 · Rest 60 s", "Part 3 · 3 Rounds",
  * "Part 4 · 12 min AMRAP".
