@@ -55,7 +55,7 @@ public class LoggedSessions {
       UUID sessionId, LocalDate date, List<LoggedSet> sets, List<Score> scores) {
     LoggedSession logged = validated(sessionId, date, sets, scores);
     if (logs.putIfAbsent(sessionId, logged) != null) {
-      throw new SessionAlreadyLoggedException(sessionId);
+      throw new SessionAlreadyLoggedException();
     }
     return logged;
   }

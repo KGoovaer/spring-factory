@@ -11,6 +11,8 @@ import {
   doneSets,
   filledScores,
   logSession,
+  SessionLoggedElsewhere,
+  type LoggedElsewhere,
   type ScoreEntry,
   type SessionToLog,
   type SetEntry,
@@ -44,6 +46,10 @@ const COLUMNS = 8;
  * Session opens with its Sets done in the rows they were planned in, so saving
  * again corrects it. An EMOM or AMRAP has a clock to start; an AMRAP is logged
  * as its Score, the Rounds and extra Reps done, rather than as Sets.
+ *
+ * When the Session was logged elsewhere while the form was open, the form keeps
+ * what the Lifter filled in and switches to correction mode, saying that saving
+ * now overwrites that Logged Session.
  */
 export function LogSessionForm({ session, today }: { session: SessionToLog; today: string }) {
   const [date, setDate] = useState(session.loggedDate ?? today);
@@ -96,6 +102,8 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
     ),
   );
   const [logged, setLogged] = useState(session.loggedDate !== null);
+  // Set when a log was refused because the Session was logged elsewhere; the next save overwrites it.
+  const [elsewhere, setElsewhere] = useState<{ logged: LoggedElsewhere | null } | null>(null);
   const [rest, setRest] = useState<{
     endsAt: number;
     seconds: number;
@@ -142,8 +150,15 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
       const send = logged ? correctLoggedSession : logSession;
       await send(session.sessionId, date, done, scored);
       setLogged(true);
+      setElsewhere(null);
       setSaving({ status: "saved" });
     } catch (error) {
+      if (error instanceof SessionLoggedElsewhere) {
+        setLogged(true);
+        setElsewhere({ logged: error.logged });
+        setSaving({ status: "idle" });
+        return;
+      }
       setSaving({ status: "failed", message: errorMessage(error) });
     }
   };
@@ -168,9 +183,19 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
           {session.notes}
         </section>
       )}
-      <p className="log-state">
-        {logged ? "Logged: saving corrects this Logged Session." : "Not logged yet."}
-      </p>
+      {elsewhere ? (
+        <div role="alert" className="log-state logged-elsewhere">
+          <p>
+            <strong>This Session was logged elsewhere</strong>
+            {elsewhere.logged && ` on ${elsewhere.logged.date} (${contents(elsewhere.logged)})`}.
+          </p>
+          <p>Your Sets below are kept. Saving now overwrites that Logged Session.</p>
+        </div>
+      ) : (
+        <p className="log-state">
+          {logged ? "Logged: saving corrects this Logged Session." : "Not logged yet."}
+        </p>
+      )}
       <label className="log-date">
         Date{" "}
         <input
@@ -277,7 +302,7 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
           className="primary"
           disabled={(done.length === 0 && scored.length === 0) || saving.status === "saving"}
         >
-          {logged ? "Correct Logged Session" : "Log Session"}
+          {elsewhere ? "Overwrite Logged Session" : logged ? "Correct Logged Session" : "Log Session"}
         </button>
         <span>
           {done.length} of {rows.length} Sets done
@@ -292,6 +317,15 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
       )}
     </form>
   );
+}
+
+/** What a Logged Session holds, as "3 Sets, 1 Score". */
+function contents(logged: LoggedElsewhere): string {
+  const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
+  return [
+    count(logged.sets, "Set"),
+    ...(logged.scores > 0 ? [count(logged.scores, "Score")] : []),
+  ].join(", ");
 }
 
 /** One Round of an AMRAP, and its Score: whole Rounds and extra Reps into the next. */
