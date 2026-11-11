@@ -157,6 +157,23 @@ class ExerciseCatalogTest {
   }
 
   @Test
+  void aNameOrGearLongerThanTheCatalogKeepsIsInvalid() {
+    String tooLong = "x".repeat(201);
+    UUID swing = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c01");
+
+    assertThatThrownBy(() -> catalog.add(tooLong, false, false, false, null))
+        .isInstanceOf(InvalidExerciseException.class)
+        .hasMessage("An Exercise name has at most 200 characters");
+    assertThatThrownBy(() -> catalog.add("Drag", true, false, false, tooLong))
+        .isInstanceOf(InvalidExerciseException.class)
+        .hasMessage("Drag names gear of at most 200 characters");
+    assertThatThrownBy(() -> catalog.change(swing, tooLong, false, false, false, null))
+        .isInstanceOf(InvalidExerciseException.class);
+    assertThat(catalog.add("x".repeat(200), true, false, false, "y".repeat(200)).name())
+        .hasSize(200);
+  }
+
+  @Test
   void aLifterChangesAnExerciseKeepingItsIdAndPlace() {
     UUID sitUp = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c08");
 

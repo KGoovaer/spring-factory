@@ -27,6 +27,9 @@ public class ExerciseCatalog {
 
   private static final String COLUMNS = "id, name, bodyweight, hold, timed, gear";
 
+  /** The longest name or gear the exercise table keeps (see V1__create_exercise.sql). */
+  private static final int MAX_LENGTH = 200;
+
   private final JdbcClient jdbc;
 
   ExerciseCatalog(JdbcClient jdbc) {
@@ -124,7 +127,19 @@ public class ExerciseCatalog {
     }
   }
 
+  /**
+   * The named parameters of an Exercise's row. Throws {@link InvalidExerciseException} when its
+   * name or gear is longer than the table keeps.
+   */
   private static Row row(Exercise exercise) {
+    if (exercise.name().length() > MAX_LENGTH) {
+      throw new InvalidExerciseException(
+          "An Exercise name has at most " + MAX_LENGTH + " characters");
+    }
+    if (exercise.gear() != null && exercise.gear().length() > MAX_LENGTH) {
+      throw new InvalidExerciseException(
+          exercise.name() + " names gear of at most " + MAX_LENGTH + " characters");
+    }
     return new Row(
         exercise.id(),
         exercise.name(),

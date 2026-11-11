@@ -151,6 +151,16 @@ class ExerciseEndpointTest {
     mvc.perform(delete("/api/exercises/" + id)).andExpect(status().isNotFound());
   }
 
+  @Test
+  void aNameLongerThanTheCatalogKeepsIsABadRequest() throws Exception {
+    mvc.perform(
+            post("/api/exercises")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"%s\"}".formatted("x".repeat(201))))
+        .andExpect(status().isBadRequest())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+  }
+
   private String added(String name) throws Exception {
     String body =
         mvc.perform(
