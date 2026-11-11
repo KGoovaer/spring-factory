@@ -8,17 +8,23 @@ import java.util.UUID;
 
 /**
  * The JSON shape of a Logged Session: {sessionId, date, sets: [{exerciseId, reps, side,
- * holdSeconds, workSeconds, bellKg}], scores: [{part, rounds, extraReps}]}.
+ * holdSeconds, workSeconds, bellKg}], scores: [{part, rounds, extraReps}],
+ * sessionSeconds}, where sessionSeconds is null when the Session was not timed.
  */
 record LoggedSessionResponse(
-    UUID sessionId, LocalDate date, List<SetResponse> sets, List<Score> scores) {
+    UUID sessionId,
+    LocalDate date,
+    List<SetResponse> sets,
+    List<Score> scores,
+    Integer sessionSeconds) {
 
   static LoggedSessionResponse of(LoggedSession logged) {
     return new LoggedSessionResponse(
         logged.sessionId(),
         logged.date(),
         logged.sets().stream().map(SetResponse::of).toList(),
-        logged.scores());
+        logged.scores(),
+        logged.sessionSeconds());
   }
 
   record SetResponse(

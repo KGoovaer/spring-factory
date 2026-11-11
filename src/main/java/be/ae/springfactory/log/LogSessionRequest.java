@@ -12,16 +12,18 @@ import java.util.UUID;
 
 /**
  * The body of POST and PUT /api/sessions/{id}/log: {date, sets: [{exerciseId, reps, side,
- * holdSeconds, workSeconds, bellKg}], scores: [{part, rounds, extraReps}]}. sets or scores may be
+ * holdSeconds, workSeconds, bellKg}], scores: [{part, rounds, extraReps}], sessionSeconds}. sets or scores may be
  * left out, but not both. scores holds the Score of each AMRAP Part done, by the Part's number in
  * the Session. side (LEFT, RIGHT or EACH) may be left out; bellKg is left out (or null) for a
  * bodyweight Exercise; holdSeconds is given only for a hold Exercise and workSeconds only for a
- * timed one.
+ * timed one. sessionSeconds, the Session time in whole seconds, may be left out when the Lifter did not
+ * time the Session.
  */
 record LogSessionRequest(
     @NotNull LocalDate date,
     List<@NotNull @Valid SetRequest> sets,
-    List<@NotNull @Valid ScoreRequest> scores) {
+    List<@NotNull @Valid ScoreRequest> scores,
+    @Min(0) Integer sessionSeconds) {
 
   List<LoggedSet> toLoggedSets() {
     return sets == null ? List.of() : sets.stream().map(SetRequest::toLoggedSet).toList();

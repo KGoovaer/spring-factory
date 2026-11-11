@@ -31,13 +31,15 @@ export interface SetToLog {
   bellKg: number | null;
   restSeconds: number | null;
   place: string | null;
+  /** The minute of an EMOM the Set is done in, from 1, or null outside an EMOM. */
+  minute: number | null;
   done: boolean;
 }
 
 /** A row of a Part on the form: a Set to tick off, or rest between Parts or in an EMOM. */
 export type RowToLog =
   | { kind: "set"; set: SetToLog }
-  | { kind: "rest"; seconds: number; place: string | null };
+  | { kind: "rest"; seconds: number; place: string | null; minute: number | null };
 
 /**
  * An AMRAP as the form lays it out: one Round, a line per Prescription, and
@@ -73,6 +75,8 @@ export interface SessionToLog {
   equipment: string[];
   /** The date of the Logged Session, or null when the Session was not logged yet. */
   loggedDate: string | null;
+  /** The Session time of the Logged Session in whole seconds, or null when it was not timed. */
+  sessionSeconds: number | null;
   /**
    * The planned Parts with one row per Set and rest. Once there is a Logged
    * Session, its Sets fill the planned rows they match, and a last Part holds
@@ -161,6 +165,7 @@ interface LoggedSessionResponse {
   date: string;
   sets: LoggedSetInput[];
   scores?: ScoreInput[];
+  sessionSeconds?: number | null;
 }
 
 /**
@@ -205,6 +210,7 @@ export async function loadSessionToLog(
     notes: place.session.notes,
     equipment: place.session.equipment,
     loggedDate: logged?.date ?? null,
+    sessionSeconds: logged?.sessionSeconds ?? null,
     parts,
   };
 }
@@ -215,7 +221,8 @@ function plannedPart(
 ): PartToLog {
   const sets = (
     prescription: PrescriptionResponse,
-    place: string | null
+    place: string | null,
+    minute: number | null = null
   ): RowToLog[] =>
     Array.from({ length: prescription.sets }, () => ({
       kind: "set",
@@ -232,6 +239,7 @@ function plannedPart(
         bellKg: prescription.bellKg,
         restSeconds: prescription.restSeconds,
         place,
+        minute,
         done: false,
       },
     }));
@@ -258,13 +266,14 @@ function plannedPart(
         rows: Array.from(
           { length: part.minutes ?? 1 },
           (_, index): RowToLog[] => {
-            const place = `Minute ${index + 1}`;
+            const minute = index + 1;
+            const place = `Minute ${minute}`;
             const inMinute = part.prescriptions.filter(
               (p) => p.minute === (index % rotation) + 1
             );
             return inMinute.length === 0
-              ? [{ kind: "rest", seconds: 60, place }]
-              : inMinute.flatMap((p) => sets(p, place));
+              ? [{ kind: "rest", seconds: 60, place, minute }]
+              : inMinute.flatMap((p) => sets(p, place, minute));
           }
         ).flat(),
       };
@@ -286,7 +295,14 @@ function plannedPart(
     case "REST":
       return {
         ...base,
-        rows: [{ kind: "rest", seconds: part.restSeconds ?? 0, place: null }],
+        rows: [
+          {
+            kind: "rest",
+            seconds: part.restSeconds ?? 0,
+            place: null,
+            minute: null,
+          },
+        ],
       };
   }
 }
@@ -328,8 +344,9 @@ export function bellWeightProblem(bellKg: string): string {
 }
 
 /**
- * Logs the Session as performed on `date` with the Sets the Lifter did and the
- * Score of each AMRAP done. The
+ * Logs the Session as performed on `date` with the Sets the Lifter did, the
+ * Score of each AMRAP done and the Session time the Lifter timed, in whole
+ * seconds, or null when they did not time it. The
  * server checks every rule and answers with ApiError (and its reason) when one
  * is broken, or when the Session has a Logged Session already.
  */
@@ -337,9 +354,15 @@ export async function logSession(
   sessionId: string,
   date: string,
   sets: LoggedSetInput[],
-  scores: ScoreInput[] = []
+  scores: ScoreInput[] = [],
+  sessionSeconds: number | null = null
 ): Promise<void> {
-  await sendJson("POST", logPath(sessionId), { date, sets, scores });
+  await sendJson("POST", logPath(sessionId), {
+    date,
+    sets,
+    scores,
+    sessionSeconds,
+  });
 }
 
 /**
@@ -350,9 +373,15 @@ export async function correctLoggedSession(
   sessionId: string,
   date: string,
   sets: LoggedSetInput[],
-  scores: ScoreInput[] = []
+  scores: ScoreInput[] = [],
+  sessionSeconds: number | null = null
 ): Promise<void> {
-  await sendJson("PUT", logPath(sessionId), { date, sets, scores });
+  await sendJson("PUT", logPath(sessionId), {
+    date,
+    sets,
+    scores,
+    sessionSeconds,
+  });
 }
 
 function logPath(sessionId: string): string {
@@ -395,6 +424,7 @@ function withLoggedSets(
         bellKg: set.bellKg,
         restSeconds: base?.restSeconds ?? null,
         place: base?.place ?? null,
+        minute: base?.minute ?? null,
         done: true,
       },
     });

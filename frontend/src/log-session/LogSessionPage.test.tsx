@@ -239,6 +239,51 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** Moves the fake clock on second by second, so every second of a countdown renders. */
+function advanceSeconds(seconds: number) {
+  for (let second = 0; second < seconds; second++) {
+    act(() => vi.advanceTimersByTime(1_000));
+  }
+}
+
+/**
+ * Stubs Web Audio at the browser boundary and returns the beeps played, in
+ * order: "long" for a tone of more than half a second, "short" otherwise.
+ */
+function listenForBeeps(): string[] {
+  const beeps: string[] = [];
+  class FakeAudioContext {
+    state = "running";
+    currentTime = 0;
+    destination = {};
+    resume() {
+      return Promise.resolve();
+    }
+    createGain() {
+      return {
+        gain: { setValueAtTime() {}, linearRampToValueAtTime() {} },
+        connect: (next: unknown) => next,
+      };
+    }
+    createOscillator() {
+      return {
+        type: "sine",
+        frequency: { value: 0 },
+        connect: (next: unknown) => next,
+        start() {},
+        stop: (at: number) => beeps.push(at > 0.5 ? "long" : "short"),
+      };
+    }
+  }
+  vi.stubGlobal("AudioContext", FakeAudioContext);
+  return beeps;
+}
+
+/** The rows the form highlights as what the Lifter is to do now. */
+function currentRows(): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>('tr[aria-current="step"]'));
+}
+
 describe("LogSessionPage", () => {
   it("shows a loading state, then one row per planned Set", async () => {
     serve(notLogged());
@@ -343,6 +388,7 @@ describe("LogSessionPage", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("Logged Session saved.");
     expect(sentBody(fetch, "POST")).toEqual({
       date: "2026-11-09",
+      sessionSeconds: null,
       sets: [
         {
           exerciseId: SWING,
@@ -450,6 +496,7 @@ describe("LogSessionPage", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("Logged Session saved.");
     expect(sentBody(fetch, "PUT")).toEqual({
       date: "2026-11-08",
+      sessionSeconds: null,
       sets: [
         {
           exerciseId: SWING,
@@ -552,9 +599,14 @@ describe("LogSessionPage", () => {
     // 5 passes of: minute 1 (2 Sets), minute 2 (1 Set), minute 3 (1 Set), minute 4 (rest).
     expect(within(emom).getAllByRole("row", { name: /^Set \d+$/ })).toHaveLength(20);
     expect(within(emom).getAllByText("Rest 60 s")).toHaveLength(5);
+    // Minute 1 holds 2 Sets, so they sit under its heading; minute 2 holds one, named in its row.
+    expect(within(emom).getByRole("rowheader", { name: "Minute 1" })).toBeInTheDocument();
     const first = screen.getByRole("row", { name: "Set 1" });
-    expect(within(first).getByText("Minute 1")).toBeInTheDocument();
+    expect(within(first).queryByText("Minute 1")).not.toBeInTheDocument();
     expect(within(first).getByText("Right")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("row", { name: "Set 3" })).getByText("Minute 2"),
+    ).toBeInTheDocument();
     expect(
       within(screen.getByRole("row", { name: "Set 3" })).getByText("Left"),
     ).toBeInTheDocument();
@@ -605,8 +657,7 @@ describe("LogSessionPage", () => {
       name: "Part 1 · 20 min EMOM, rotating through 4 minutes",
     });
     expect(within(emom).getAllByText("Rest 60 s")).toHaveLength(5);
-    const first = screen.getByRole("row", { name: "Set 1" });
-    expect(within(first).getByText("Minute 1")).toBeInTheDocument();
+    expect(within(emom).getByRole("rowheader", { name: "Minute 1" })).toBeInTheDocument();
     expect(screen.getByLabelText("Set 1 Bell")).toHaveValue(20);
     expect(screen.getByLabelText("Set 2 Reps")).toHaveValue(4);
     expect(screen.getByRole("button", { name: "Set 2 done" })).toHaveAttribute(
@@ -801,5 +852,147 @@ describe("LogSessionPage", () => {
     expect(screen.getByLabelText("Part 2 Rounds")).toHaveValue(6);
     expect(screen.getByLabelText("Part 2 extra Reps")).toHaveValue(0);
     expect(screen.getByRole("button", { name: "Correct Logged Session" })).toBeEnabled();
+  });
+
+  it("times the whole Session from Start session and logs its Session time", async () => {
+    const fetch = serve(notLogged({ "POST /api/sessions/s1/log": [201, LOGGED] }));
+    renderPage();
+    await screen.findByRole("heading", { name: "Week 1 · Session 2" });
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] });
+    const bar = screen.getByRole("region", { name: "Session" });
+    expect(within(bar).queryByRole("timer")).not.toBeInTheDocument();
+
+    fireEvent.click(within(bar).getByRole("button", { name: "Start session" }));
+    expect(within(bar).getByRole("timer", { name: "Session time" })).toHaveTextContent("0:00");
+    act(() => vi.advanceTimersByTime(65_000));
+    expect(within(bar).getByRole("timer")).toHaveTextContent("1:05");
+
+    fireEvent.click(within(bar).getByRole("button", { name: "Stop session" }));
+    act(() => vi.advanceTimersByTime(30_000));
+    expect(within(bar).getByRole("timer")).toHaveTextContent("1:05");
+    fireEvent.click(within(bar).getByRole("button", { name: "Resume session" }));
+    act(() => vi.advanceTimersByTime(10_000));
+    expect(within(bar).getByRole("timer")).toHaveTextContent("1:15");
+    fireEvent.click(within(bar).getByRole("button", { name: "Stop session" }));
+    vi.useRealTimers();
+
+    fireEvent.click(screen.getByRole("button", { name: "Set 1 done" }));
+    fireEvent.click(screen.getByRole("button", { name: "Log Session" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Logged Session saved.");
+    expect(sentBody(fetch, "POST")).toMatchObject({ sessionSeconds: 75 });
+  });
+
+  it("opens a Logged Session with its Session time and goes on from it", async () => {
+    const fetch = serve(
+      notLogged({
+        "GET /api/sessions/s1/log": [200, { ...LOGGED, sessionSeconds: 2_710 }],
+        "PUT /api/sessions/s1/log": [200, LOGGED],
+      }),
+    );
+    renderPage();
+    await screen.findByRole("heading", { name: "Week 1 · Session 2" });
+
+    const bar = screen.getByRole("region", { name: "Session" });
+    expect(within(bar).getByRole("timer", { name: "Session time" })).toHaveTextContent("45:10");
+    expect(within(bar).getByRole("button", { name: "Resume session" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Correct Logged Session" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Logged Session saved.");
+    expect(sentBody(fetch, "PUT")).toMatchObject({ sessionSeconds: 2_710 });
+  });
+
+  it("highlights the first Set not done yet as the one to do now", async () => {
+    serve(notLogged());
+    renderPage();
+    await screen.findByRole("heading", { name: "Week 1 · Session 2" });
+
+    expect(currentRows()).toEqual([screen.getByRole("row", { name: "Set 1" })]);
+    fireEvent.click(screen.getByRole("button", { name: "Set 1 done" }));
+    expect(currentRows()).toEqual([screen.getByRole("row", { name: "Set 2" })]);
+  });
+
+  it("highlights the Sets of the EMOM minute, following its running clock", async () => {
+    serve({
+      "GET /api/programs/p1": [200, PROGRAM],
+      "GET /api/exercises": [200, EXERCISES],
+      "GET /api/sessions/s3/log": [404, { detail: "Session s3 has no Logged Session" }],
+    });
+    renderPage("/programs/p1/sessions/s3/log");
+    await screen.findByRole("heading", { name: "Week 1 · Session 4" });
+    const set = (number: number) => screen.getByRole("row", { name: `Set ${number}` });
+
+    // Minute 1 holds Sets 1 and 2; minute 2 holds Set 3.
+    expect(currentRows()).toEqual([set(1), set(2)]);
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] });
+    fireEvent.click(screen.getByRole("button", { name: "Start EMOM" }));
+    act(() => vi.advanceTimersByTime(61_000));
+    expect(currentRows()).toEqual([set(3)]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Stop EMOM" }));
+    fireEvent.click(screen.getByRole("button", { name: "Set 1 done" }));
+    expect(currentRows()).toEqual([set(2)]);
+  });
+
+  it("highlights an AMRAP until it has a Score", async () => {
+    serve({
+      "GET /api/programs/p1": [200, PROGRAM],
+      "GET /api/exercises": [200, EXERCISES],
+      "GET /api/sessions/s5/log": [404, { detail: "Session s5 has no Logged Session" }],
+    });
+    renderPage("/programs/p1/sessions/s5/log");
+    await screen.findByRole("heading", { name: "Week 1 · Session 6" });
+    const amrapRow = screen.getByLabelText("Part 2 Rounds").closest("tr");
+
+    fireEvent.click(screen.getByRole("button", { name: "Set 1 done" }));
+    expect(currentRows()).toEqual([amrapRow]);
+    fireEvent.change(screen.getByLabelText("Part 2 Rounds"), { target: { value: "5" } });
+    expect(currentRows()).toEqual([]);
+  });
+
+  it("beeps the last 5 seconds of the rest and long at 0, unless the beeps are off", async () => {
+    const beeps = listenForBeeps();
+    serve(notLogged());
+    renderPage();
+    await screen.findByRole("heading", { name: "Week 1 · Session 2" });
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] });
+
+    fireEvent.click(screen.getByRole("button", { name: "Set 1 done" }));
+    advanceSeconds(54);
+    expect(beeps).toEqual([]);
+    advanceSeconds(6);
+    expect(beeps).toEqual(["short", "short", "short", "short", "short", "long"]);
+
+    beeps.length = 0;
+    fireEvent.click(screen.getByRole("button", { name: "Beeps on" }));
+    expect(screen.getByRole("button", { name: "Beeps off" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Set 2 done" }));
+    advanceSeconds(60);
+    expect(beeps).toEqual([]);
+  });
+
+  it("beeps into each new EMOM minute and the end of a hold", async () => {
+    const beeps = listenForBeeps();
+    serve({
+      "GET /api/programs/p1": [200, PROGRAM],
+      "GET /api/exercises": [200, EXERCISES],
+      "GET /api/sessions/s3/log": [404, { detail: "Session s3 has no Logged Session" }],
+    });
+    renderPage("/programs/p1/sessions/s3/log");
+    await screen.findByRole("heading", { name: "Week 1 · Session 4" });
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] });
+
+    fireEvent.click(screen.getByRole("button", { name: "Start EMOM" }));
+    advanceSeconds(60);
+    expect(beeps).toEqual(["short", "short", "short", "short", "short", "long"]);
+    fireEvent.click(screen.getByRole("button", { name: "Stop EMOM" }));
+
+    beeps.length = 0;
+    fireEvent.click(screen.getByRole("button", { name: "Set 4 Start work" }));
+    advanceSeconds(45);
+    expect(beeps).toEqual(["short", "short", "short", "short", "short", "long"]);
   });
 });

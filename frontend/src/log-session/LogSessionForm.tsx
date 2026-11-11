@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
 import { errorMessage } from "../api/client";
 import { sideLabel } from "../api/programs";
 import { HoldTimer } from "./HoldTimer";
 import { PartClockView } from "./PartClockView";
 import { RestTimer } from "./RestTimer";
+import { SessionTimerView } from "./SessionTimerView";
+import type { Beep } from "./beeps";
+import { currentStep, sharedMinutes, type PartSteps } from "./currentStep";
 import {
   bellWeightProblem,
   correctLoggedSession,
@@ -15,12 +18,21 @@ import {
   type SessionToLog,
   type SetEntry,
 } from "./logSession";
+import {
+  sessionSeconds,
+  startSessionTimer,
+  stoppedAt,
+  stopSessionTimer,
+  type SessionTimer,
+} from "./sessionTimer";
+import { BeepContext, playBeep, unlockAudio } from "./sound";
 
 interface SetRow extends SetEntry {
   key: number;
   repsRange: string | null;
   restSeconds: number | null;
   place: string | null;
+  minute: number | null;
 }
 
 /** A row of a Part on the form: the Set with this key, or rest. */
@@ -44,6 +56,11 @@ const COLUMNS = 8;
  * Session opens with its Sets done in the rows they were planned in, so saving
  * again corrects it. An EMOM or AMRAP has a clock to start; an AMRAP is logged
  * as its Score, the Rounds and extra Reps done, rather than as Sets.
+ *
+ * The Session timer times the whole Session, and its Session time is logged
+ * with it. The step the Lifter is to do now is highlighted, the Sets of an
+ * EMOM minute that holds several are grouped under that minute, and every
+ * countdown beeps its last 5 seconds unless the Lifter turns the beeps off.
  */
 export function LogSessionForm({ session, today }: { session: SessionToLog; today: string }) {
   const [date, setDate] = useState(session.loggedDate ?? today);
@@ -53,6 +70,10 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
       title: part.title,
       clock: part.clock,
       amrap: part.amrap,
+      // The EMOM minutes this Part groups under a heading: those with several Sets.
+      sharedMinutes: sharedMinutes(
+        part.rows.map((row) => (row.kind === "set" ? row.set.minute : null)),
+      ),
       rows: part.rows.map((row, rowIndex): LayoutRow =>
         row.kind === "set"
           ? { kind: "set", key: key++ }
@@ -79,6 +100,7 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
         workSeconds: set.workSeconds === null ? "" : String(set.workSeconds),
         restSeconds: set.restSeconds,
         place: set.place,
+        minute: set.minute,
         done: set.done,
       })),
   );
@@ -102,6 +124,29 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
     key: number | string;
   } | null>(null);
   const [saving, setSaving] = useState<Saving>({ status: "idle" });
+  const [timer, setTimer] = useState<SessionTimer | null>(() =>
+    session.sessionSeconds === null ? null : stoppedAt(session.sessionSeconds),
+  );
+  const [muted, setMuted] = useState(false);
+  // The minute each Part's clock is in, by Part index; absent while it does not run.
+  const [clockMinutes, setClockMinutes] = useState<Record<number, number>>({});
+
+  const beep = useCallback((due: Beep) => (muted ? undefined : playBeep(due)), [muted]);
+
+  const reportMinute = useCallback((part: number, minute: number | null) => {
+    setClockMinutes((current) => {
+      if ((current[part] ?? null) === minute) {
+        return current;
+      }
+      const next = { ...current };
+      if (minute === null) {
+        delete next[part];
+      } else {
+        next[part] = minute;
+      }
+      return next;
+    });
+  }, []);
 
   // An edit makes a "saved" or "failed" message stale: it no longer describes the form.
   const edited = () =>
@@ -134,13 +179,41 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
 
   const done = doneSets(rows);
   const scored = filledScores(scores);
+  const current = currentStep(
+    layout.map((part, index): PartSteps => ({
+      clockMinute: clockMinutes[index] ?? null,
+      steps: [
+        ...(part.amrap
+          ? [
+              {
+                kind: "amrap" as const,
+                part: part.amrap.part,
+                scored: scored.some((score) => score.part === part.amrap?.part),
+              },
+            ]
+          : []),
+        ...part.rows.flatMap((item) =>
+          item.kind === "set"
+            ? [
+                {
+                  kind: "set" as const,
+                  key: item.key,
+                  minute: rows[item.key].minute,
+                  done: rows[item.key].done,
+                },
+              ]
+            : [],
+        ),
+      ],
+    })),
+  );
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
     setSaving({ status: "saving" });
     try {
       const send = logged ? correctLoggedSession : logSession;
-      await send(session.sessionId, date, done, scored);
+      await send(session.sessionId, date, done, scored, sessionTimeNow(timer));
       setLogged(true);
       setSaving({ status: "saved" });
     } catch (error) {
@@ -149,148 +222,196 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
   };
 
   return (
-    <form className="log-session" onSubmit={save}>
-      <p>
-        <Link to={`/programs/${encodeURIComponent(session.programId)}`}>
-          ← {session.programName}
-        </Link>
-      </p>
-      <h1>
-        Week {session.weekNumber} · Session {session.sessionNumber}
-      </h1>
-      {session.equipment.length > 0 && (
-        <p className="equipment">
-          <strong>Equipment:</strong> {session.equipment.join(", ")}
+    <BeepContext.Provider value={beep}>
+      <form
+        className="log-session"
+        onSubmit={save}
+        onClick={() => {
+          // Browsers let a page play sound only after a click on it.
+          if (!muted) {
+            unlockAudio();
+          }
+        }}
+      >
+        <p>
+          <Link to={`/programs/${encodeURIComponent(session.programId)}`}>
+            ← {session.programName}
+          </Link>
         </p>
-      )}
-      {session.notes && (
-        <section className="notes" aria-label="Notes">
-          {session.notes}
-        </section>
-      )}
-      <p className="log-state">
-        {logged ? "Logged: saving corrects this Logged Session." : "Not logged yet."}
-      </p>
-      <label className="log-date">
-        Date{" "}
-        <input
-          type="date"
-          required
-          value={date}
-          onChange={(e) => {
-            edited();
-            setDate(e.target.value);
-          }}
-        />
-      </label>
+        <h1>
+          Week {session.weekNumber} · Session {session.sessionNumber}
+        </h1>
+        {session.equipment.length > 0 && (
+          <p className="equipment">
+            <strong>Equipment:</strong> {session.equipment.join(", ")}
+          </p>
+        )}
+        {session.notes && (
+          <section className="notes" aria-label="Notes">
+            {session.notes}
+          </section>
+        )}
+        <p className="log-state">
+          {logged ? "Logged: saving corrects this Logged Session." : "Not logged yet."}
+        </p>
+        <label className="log-date">
+          Date{" "}
+          <input
+            type="date"
+            required
+            value={date}
+            onChange={(e) => {
+              edited();
+              setDate(e.target.value);
+            }}
+          />
+        </label>
 
-      {rest && (
-        <RestTimer
-          key={rest.endsAt}
-          endsAt={rest.endsAt}
-          totalSeconds={rest.seconds}
-          onDismiss={() => setRest(null)}
-        />
-      )}
+        <div className="log-timers">
+          <section className="session-bar" aria-label="Session">
+            <SessionTimerView
+              timer={timer}
+              onStart={() => {
+                edited();
+                setTimer((current) => startSessionTimer(current, Date.now()));
+              }}
+              onStop={() => {
+                edited();
+                setTimer((current) => current && stopSessionTimer(current, Date.now()));
+              }}
+            />
+            <button type="button" aria-pressed={!muted} onClick={() => setMuted(!muted)}>
+              {muted ? "Beeps off" : "Beeps on"}
+            </button>
+          </section>
 
-      {layout.every((part) => part.rows.length === 0 && !part.amrap) ? (
-        <p>This Session has no Prescriptions yet.</p>
-      ) : (
-        <table className="log-sets">
-          <thead>
-            <tr>
-              <th scope="col">Set</th>
-              <th scope="col">Exercise</th>
-              <th scope="col">Side</th>
-              <th scope="col">Reps</th>
-              <th scope="col">Time (s)</th>
-              <th scope="col">Bell (kg)</th>
-              <th scope="col">Rest</th>
-              <th scope="col">Done</th>
-            </tr>
-          </thead>
-          {layout.map((part) => (
-            <tbody key={part.title} aria-label={part.title}>
-              <tr className="part-heading">
-                <th scope="rowgroup" colSpan={COLUMNS}>
-                  {part.title}
-                </th>
+          {rest && (
+            <RestTimer
+              key={rest.endsAt}
+              endsAt={rest.endsAt}
+              totalSeconds={rest.seconds}
+              onDismiss={() => setRest(null)}
+            />
+          )}
+        </div>
+
+        {layout.every((part) => part.rows.length === 0 && !part.amrap) ? (
+          <p>This Session has no Prescriptions yet.</p>
+        ) : (
+          <table className="log-sets">
+            <thead>
+              <tr>
+                <th scope="col">Set</th>
+                <th scope="col">Exercise</th>
+                <th scope="col">Side</th>
+                <th scope="col">Reps</th>
+                <th scope="col">Time (s)</th>
+                <th scope="col">Bell (kg)</th>
+                <th scope="col">Rest</th>
+                <th scope="col">Done</th>
               </tr>
-              {part.clock && (
-                <tr className="clock-row">
-                  <td colSpan={COLUMNS}>
-                    <PartClockView
-                      format={part.clock.format}
-                      minutes={part.clock.minutes}
-                      name={part.title}
-                    />
-                  </td>
+            </thead>
+            {layout.map((part, partIndex) => (
+              <tbody key={part.title} aria-label={part.title}>
+                <tr className="part-heading">
+                  <th scope="rowgroup" colSpan={COLUMNS}>
+                    {part.title}
+                  </th>
                 </tr>
-              )}
-              {part.amrap && (
-                <AmrapRow
-                  amrap={part.amrap}
-                  score={scores.find((score) => score.part === part.amrap?.part)}
-                  update={updateScore}
-                />
-              )}
-              {part.rows.map((item) =>
-                item.kind === "rest" ? (
-                  <tr key={item.key} className="rest-row">
-                    <th scope="row" className="place">
-                      {item.place}
-                    </th>
-                    <td colSpan={COLUMNS - 2}>Rest {item.seconds} s</td>
-                    <td>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setRest({
-                            endsAt: Date.now() + item.seconds * 1000,
-                            seconds: item.seconds,
-                            key: item.key,
-                          })
-                        }
-                      >
-                        Start rest
-                      </button>
+                {part.clock && (
+                  <tr className="clock-row">
+                    <td colSpan={COLUMNS}>
+                      <PartClockView
+                        format={part.clock.format}
+                        minutes={part.clock.minutes}
+                        name={part.title}
+                        onMinute={(minute) => reportMinute(partIndex, minute)}
+                      />
                     </td>
                   </tr>
-                ) : (
-                  <SetRowView
-                    key={item.key}
-                    row={rows[item.key]}
-                    number={item.key + 1}
-                    update={update}
-                    toggleDone={toggleDone}
+                )}
+                {part.amrap && (
+                  <AmrapRow
+                    amrap={part.amrap}
+                    score={scores.find((score) => score.part === part.amrap?.part)}
+                    update={updateScore}
+                    current={current.amrap === part.amrap.part}
                   />
-                ),
-              )}
-            </tbody>
-          ))}
-        </table>
-      )}
+                )}
+                {part.rows.map((item, index) => {
+                  const minute = item.kind === "set" ? rows[item.key].minute : null;
+                  const grouped = minute !== null && part.sharedMinutes.has(minute);
+                  const previous = part.rows[index - 1];
+                  const startsGroup =
+                    grouped && !(previous?.kind === "set" && rows[previous.key].minute === minute);
+                  return [
+                    startsGroup && (
+                      <tr key={`minute-${minute}`} className="minute-heading">
+                        <th scope="rowgroup" colSpan={COLUMNS}>
+                          Minute {minute}
+                        </th>
+                      </tr>
+                    ),
+                    item.kind === "rest" ? (
+                      <tr key={item.key} className="rest-row">
+                        <th scope="row" className="place">
+                          {item.place}
+                        </th>
+                        <td colSpan={COLUMNS - 2}>Rest {item.seconds} s</td>
+                        <td>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setRest({
+                                endsAt: Date.now() + item.seconds * 1000,
+                                seconds: item.seconds,
+                                key: item.key,
+                              })
+                            }
+                          >
+                            Start rest
+                          </button>
+                        </td>
+                      </tr>
+                    ) : (
+                      <SetRowView
+                        key={item.key}
+                        row={rows[item.key]}
+                        number={item.key + 1}
+                        update={update}
+                        toggleDone={toggleDone}
+                        current={current.sets.includes(item.key)}
+                        grouped={grouped}
+                      />
+                    ),
+                  ];
+                })}
+              </tbody>
+            ))}
+          </table>
+        )}
 
-      <div className="log-actions">
-        <button
-          type="submit"
-          className="primary"
-          disabled={(done.length === 0 && scored.length === 0) || saving.status === "saving"}
-        >
-          {logged ? "Correct Logged Session" : "Log Session"}
-        </button>
-        <span>
-          {done.length} of {rows.length} Sets done
-          {scores.length > 0 && `, ${scored.length} of ${scores.length} AMRAPs scored`}
-        </span>
-      </div>
-      {saving.status === "saved" && <p role="status">Logged Session saved.</p>}
-      {saving.status === "failed" && (
-        <div role="alert" className="error">
-          <p>Could not save the Logged Session: {saving.message}</p>
+        <div className="log-actions">
+          <button
+            type="submit"
+            className="primary"
+            disabled={(done.length === 0 && scored.length === 0) || saving.status === "saving"}
+          >
+            {logged ? "Correct Logged Session" : "Log Session"}
+          </button>
+          <span>
+            {done.length} of {rows.length} Sets done
+            {scores.length > 0 && `, ${scored.length} of ${scores.length} AMRAPs scored`}
+          </span>
         </div>
-      )}
-    </form>
+        {saving.status === "saved" && <p role="status">Logged Session saved.</p>}
+        {saving.status === "failed" && (
+          <div role="alert" className="error">
+            <p>Could not save the Logged Session: {saving.message}</p>
+          </div>
+        )}
+      </form>
+    </BeepContext.Provider>
   );
 }
 
@@ -299,14 +420,20 @@ function AmrapRow({
   amrap,
   score,
   update,
+  current,
 }: {
   amrap: NonNullable<SessionToLog["parts"][number]["amrap"]>;
   score: ScoreEntry | undefined;
   update: (part: number, change: Partial<ScoreEntry>) => void;
+  /** Whether the AMRAP is what the Lifter is to do now. */
+  current: boolean;
 }) {
   const name = `Part ${amrap.part}`;
   return (
-    <tr className="amrap-row">
+    <tr
+      className={current ? "amrap-row current" : "amrap-row"}
+      aria-current={current ? "step" : undefined}
+    >
       <td colSpan={COLUMNS}>
         <p className="amrap-round">
           <strong>One Round:</strong> {amrap.round.length > 0 ? amrap.round.join("; ") : "–"}
@@ -341,18 +468,31 @@ function SetRowView({
   number,
   update,
   toggleDone,
+  current,
+  grouped,
 }: {
   row: SetRow;
   number: number;
   update: (key: number, change: Partial<SetRow>) => void;
   toggleDone: (row: SetRow) => void;
+  /** Whether this is (one of) the Set(s) the Lifter is to do now. */
+  current: boolean;
+  /** Whether the Set sits under the heading of its EMOM minute, which then names the minute. */
+  grouped: boolean;
 }) {
   const name = `Set ${number}`;
+  const classes = [row.done && "done", current && "current", grouped && "in-minute"].filter(
+    Boolean,
+  );
   return (
-    <tr aria-label={name} className={row.done ? "done" : undefined}>
+    <tr
+      aria-label={name}
+      aria-current={current ? "step" : undefined}
+      className={classes.length > 0 ? classes.join(" ") : undefined}
+    >
       <th scope="row">
         {number}
-        {row.place && <span className="place">{row.place}</span>}
+        {row.place && !grouped && <span className="place">{row.place}</span>}
       </th>
       <td>{row.exercise.name}</td>
       <td>{sideLabel(row.side, row.reps)}</td>
@@ -415,6 +555,11 @@ function SetRowView({
       </td>
     </tr>
   );
+}
+
+/** The Session time the timer counted so far, or null when the Lifter did not time the Session. */
+function sessionTimeNow(timer: SessionTimer | null): number | null {
+  return timer === null ? null : sessionSeconds(timer, Date.now());
 }
 
 /** A typed time as whole seconds, or null when it is not a time of at least 1 s. */

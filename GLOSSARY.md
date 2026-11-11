@@ -81,8 +81,12 @@ _Avoid_: Target, Plan
 ### Doing
 
 **Logged Session**:
-A Session as actually performed on a date, with what the Lifter really did: the Sets done, and a Score for each AMRAP. Planned and logged data are never mixed.
+A Session as actually performed on a date, with what the Lifter really did: the Sets done, a Score for each AMRAP, and the Session time if the Lifter timed it. Planned and logged data are never mixed.
 _Avoid_: Completed workout, History entry
+
+**Session time**:
+How long the Lifter trained for a Logged Session, in whole seconds, as the Session timer counted it: from Start session, leaving out any time it was stopped. A Logged Session the Lifter did not time has none.
+_Avoid_: Duration, Total time, Workout time
 
 **Score**:
 What a Lifter did in an AMRAP: whole Rounds plus extra Reps into the next, written 5 + 7. The extra Reps are fewer than a Round has.
@@ -120,7 +124,7 @@ _Avoid_: User, Athlete, Trainee
 
 - A **Program** has many **Weeks**; a **Week** has many **Sessions**.
 - A **Session** has many **Parts**; a **Part** has many **Prescriptions**, each for one **Exercise**.
-- A **Logged Session** refers to the **Session** it performed and holds the **Sets** actually done and a **Score** per **AMRAP** done.
+- A **Logged Session** refers to the **Session** it performed and holds the **Sets** actually done, a **Score** per **AMRAP** done and, if timed, its **Session time**.
 - **Volume**, **Adherence** and **Equipment** are always derived, never stored.
 
 ## Flagged ambiguities
