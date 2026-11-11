@@ -1,29 +1,51 @@
 package be.ae.springfactory.exercise;
 
-import java.util.UUID;
-import javax.sql.DataSource;
 import org.flywaydb.core.Flyway;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.boot.Banner;
+import org.springframework.boot.WebApplicationType;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Import;
 
 /**
- * Exercise catalogs for tests that need one without the Spring context: each is backed by its own
- * in-memory H2 database, migrated and seeded by the app's own Flyway migrations.
+ * Exercise catalogs for tests that need one without the app's own Spring context: the catalog, its
+ * repository and its database on their own, migrated and seeded by the app's own Flyway
+ * migrations.
  */
 public final class ExerciseCatalogs {
 
+  private static ConfigurableApplicationContext shared;
+
   private ExerciseCatalogs() {}
 
-  /** A catalog that holds the seeded Exercises and nothing else. */
-  public static ExerciseCatalog seeded() {
-    DataSource database = freshDatabase();
-    Flyway.configure().dataSource(database).load().migrate();
-    return new ExerciseCatalog(JdbcClient.create(database));
+  /**
+   * A catalog that holds the seeded Exercises and nothing else. Every call empties and reseeds the
+   * one in-memory database all of them share, so a test takes one catalog and keeps it.
+   */
+  public static synchronized ExerciseCatalog seeded() {
+    if (shared == null) {
+      shared = start("jdbc:h2:mem:exercise-catalogs;DB_CLOSE_DELAY=-1");
+    }
+    Flyway flyway = shared.getBean(Flyway.class);
+    flyway.clean();
+    flyway.migrate();
+    return shared.getBean(ExerciseCatalog.class);
   }
 
-  /** An empty, unmigrated in-memory database of its own. */
-  static DataSource freshDatabase() {
-    return new DriverManagerDataSource(
-        "jdbc:h2:mem:exercises-" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1", "sa", "");
+  /** Starts the catalog on the database at this JDBC URL, migrating it first. */
+  static ConfigurableApplicationContext start(String url) {
+    return new SpringApplicationBuilder(CatalogOnly.class)
+        .web(WebApplicationType.NONE)
+        .bannerMode(Banner.Mode.OFF)
+        .logStartupInfo(false)
+        .run("--spring.datasource.url=" + url, "--spring.flyway.clean-disabled=false");
   }
+
+  /** The catalog with what Spring Boot configures for it: the datasource, Flyway and JPA. */
+  @TestConfiguration(proxyBeanMethods = false)
+  @EnableAutoConfiguration
+  @Import(ExerciseCatalog.class)
+  static class CatalogOnly {}
 }

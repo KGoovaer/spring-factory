@@ -1,6 +1,6 @@
 -- The Exercise catalog (docs/adr/0009-exercises-live-in-a-database.md).
--- The classification columns mirror the Exercise record, which checks them
--- again when a row is read back.
+-- The classification columns mirror the Exercise record, which holds the
+-- rules: every row is written from one and read back through one.
 --
 -- name_key is the lower-cased name while the Exercise is listed, so names are
 -- unique ignoring case; a removed Exercise keeps its row, so Prescriptions and
@@ -15,7 +15,5 @@ CREATE TABLE exercise (
   timed      BOOLEAN       NOT NULL,
   gear       VARCHAR(200),
   position   INT           NOT NULL,
-  removed    BOOLEAN       DEFAULT FALSE NOT NULL,
-  CONSTRAINT exercise_not_both_hold_and_timed CHECK (NOT (hold AND timed)),
-  CONSTRAINT exercise_gear_only_without_a_bell CHECK (gear IS NULL OR bodyweight)
+  removed    BOOLEAN       DEFAULT FALSE NOT NULL
 );

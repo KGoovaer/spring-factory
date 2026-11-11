@@ -13,11 +13,15 @@ Exercises move first, on their own.
   `V1` creates the `exercise` table; `V2` seeds the twelve Exercises with the
   fixed ids of docs/adr/0001-exercise-ids-are-uuids.md. Every later change to
   the schema or the seeds is a new migration; shipped ones are never edited.
-- **Access.** Spring's `JdbcClient` behind `ExerciseCatalog`, whose `all`,
-  `get` and `add` keep their signatures. Every row is rebuilt through the
-  `Exercise` record, so the Kettlebell, Bodyweight, Hold and Timed rules hold
-  for what is read back; the table repeats the two rules a row can break on its
-  own (not both a hold and timed, gear only without a Bell) as checks.
+- **Access.** Spring Data JPA: an `ExerciseRow` entity and its `ExerciseRows`
+  repository, both package-private behind `ExerciseCatalog`, whose `all`, `get`
+  and `add` keep their signatures. Hibernate only validates the entity against
+  the schema; the migrations own it. A row is written only from an `Exercise`
+  and read back only through one, so the Kettlebell, Bodyweight, Hold and Timed
+  rules, and the 200 characters a name or gear may have, live in the record
+  alone; the table does not repeat them as checks.
+- **One app per database file.** The catalog takes one change at a time, and
+  nothing else opens the file, so that is all the locking it needs.
 - **Seeds are plain inserts.** `V1` and `V2` run together on an empty table,
   so no Lifter's Exercise can share a seed's name. A later seed migration that
   meets a name a Lifter took decides then what to do with it; none is planned.
@@ -45,8 +49,9 @@ Exercises move first, on their own.
   catalog a container. H2 runs Postgres-style SQL in-process; moving is a
   datasource and driver change plus a check of the migrations.
 - **Liquibase**: changelogs in XML or YAML for what plain SQL says as well.
-- **JPA**: an entity, a repository and a second copy of the Exercise rules in
-  annotations, for one table read through three queries.
+- **`JdbcClient` and hand-written SQL**: less machinery for one table. The
+  first version of #22 used it; review asked for JPA instead, which Programs
+  and Logged Sessions can share when they move.
 - **Seeding at startup in Java**: keeps the seeds next to the code, but runs on
   every start and has to decide each time whether a Lifter renamed a seed.
 - **Deleting a removed Exercise's row**: Prescriptions and Logged Sets that

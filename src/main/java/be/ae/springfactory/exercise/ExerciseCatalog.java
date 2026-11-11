@@ -1,12 +1,7 @@
 package be.ae.springfactory.exercise;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.List;
-import java.util.Locale;
 import java.util.UUID;
-import org.springframework.dao.DuplicateKeyException;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
 /**
@@ -20,28 +15,21 @@ import org.springframework.stereotype.Component;
  * <p>A Lifter changes an Exercise or removes it. A removed Exercise is no longer listed and frees
  * its name, but {@link #get} still finds it, so Prescriptions and Logged Sets that refer to it
  * keep resolving. Every row is rebuilt through {@link Exercise}, so its rules hold for what is
- * read back as much as for what is written. Safe for concurrent use.
+ * read back as much as for what is written. Safe for concurrent use: the app is the only one
+ * using its database, and it changes the catalog one call at a time.
  */
 @Component
 public class ExerciseCatalog {
 
-  private static final String COLUMNS = "id, name, bodyweight, hold, timed, gear";
+  private final ExerciseRows rows;
 
-  /** The longest name or gear the exercise table keeps (see V1__create_exercise.sql). */
-  private static final int MAX_LENGTH = 200;
-
-  private final JdbcClient jdbc;
-
-  ExerciseCatalog(JdbcClient jdbc) {
-    this.jdbc = jdbc;
+  ExerciseCatalog(ExerciseRows rows) {
+    this.rows = rows;
   }
 
   /** The listed Exercises, in catalog order. The returned list is an unmodifiable snapshot. */
   public List<Exercise> all() {
-    return List.copyOf(
-        jdbc.sql("SELECT " + COLUMNS + " FROM exercise WHERE NOT removed ORDER BY position")
-            .query(ExerciseCatalog::exercise)
-            .list());
+    return rows.findByRemovedFalseOrderByPosition().stream().map(ExerciseRow::exercise).toList();
   }
 
   /**
@@ -49,10 +37,8 @@ public class ExerciseCatalog {
    * there is none.
    */
   public Exercise get(UUID id) {
-    return jdbc.sql("SELECT " + COLUMNS + " FROM exercise WHERE id = ?")
-        .param(id)
-        .query(ExerciseCatalog::exercise)
-        .optional()
+    return rows.findById(id)
+        .map(ExerciseRow::exercise)
         .orElseThrow(() -> new ExerciseNotFoundException(id));
   }
 
@@ -64,51 +50,26 @@ public class ExerciseCatalog {
   public synchronized Exercise add(
       String name, boolean bodyweight, boolean hold, boolean timed, String gear) {
     Exercise exercise = new Exercise(UUID.randomUUID(), name, bodyweight, hold, timed, gear);
-    try {
-      jdbc.sql(
-              """
-              INSERT INTO exercise (id, name, name_key, bodyweight, hold, timed, gear, position)
-              SELECT :id, :name, :nameKey, :bodyweight, :hold, :timed, :gear,
-                     COALESCE(MAX(position), 0) + 1
-              FROM exercise
-              """)
-          .paramSource(row(exercise))
-          .update();
-    } catch (DuplicateKeyException e) {
-      throw new ExerciseNameTakenException(exercise.name());
-    }
+    refuseTakenName(exercise);
+    int last = rows.findTopByOrderByPositionDesc().map(ExerciseRow::position).orElse(0);
+    rows.save(new ExerciseRow(exercise, last + 1));
     return exercise;
   }
 
   /**
    * Changes the name and classification of the listed Exercise with this id, keeping its id and
-   * place in the catalog, and returns it. Prescriptions and Logged Sets that refer to it keep what
-   * they were planned or logged with; the new classification applies to the ones added after.
-   * Throws {@link ExerciseNotFoundException} when no listed Exercise has this id, {@link
-   * InvalidExerciseException} when the change breaks a rule of {@link Exercise}, and {@link
-   * ExerciseNameTakenException} when another listed Exercise has this name, ignoring case.
+   * place in the catalog, and returns it. Throws {@link ExerciseNotFoundException} when no listed
+   * Exercise has this id, {@link InvalidExerciseException} when the change breaks a rule of {@link
+   * Exercise}, and {@link ExerciseNameTakenException} when another listed Exercise has this name,
+   * ignoring case.
    */
   public synchronized Exercise change(
       UUID id, String name, boolean bodyweight, boolean hold, boolean timed, String gear) {
+    ExerciseRow row = listed(id);
     Exercise exercise = new Exercise(id, name, bodyweight, hold, timed, gear);
-    int changed;
-    try {
-      changed =
-          jdbc.sql(
-                  """
-                  UPDATE exercise
-                  SET name = :name, name_key = :nameKey, bodyweight = :bodyweight,
-                      hold = :hold, timed = :timed, gear = :gear
-                  WHERE id = :id AND NOT removed
-                  """)
-              .paramSource(row(exercise))
-              .update();
-    } catch (DuplicateKeyException e) {
-      throw new ExerciseNameTakenException(exercise.name());
-    }
-    if (changed == 0) {
-      throw new ExerciseNotFoundException(id);
-    }
+    refuseTakenName(exercise);
+    row.set(exercise);
+    rows.save(row);
     return exercise;
   }
 
@@ -117,56 +78,20 @@ public class ExerciseCatalog {
    * still finds it. Throws {@link ExerciseNotFoundException} when no listed Exercise has this id.
    */
   public synchronized void remove(UUID id) {
-    int removed =
-        jdbc.sql(
-                "UPDATE exercise SET removed = TRUE, name_key = NULL WHERE id = ? AND NOT removed")
-            .param(id)
-            .update();
-    if (removed == 0) {
-      throw new ExerciseNotFoundException(id);
-    }
+    ExerciseRow row = listed(id);
+    row.remove();
+    rows.save(row);
   }
 
-  /**
-   * The named parameters of an Exercise's row. Throws {@link InvalidExerciseException} when its
-   * name or gear is longer than the table keeps.
-   */
-  private static Row row(Exercise exercise) {
-    if (exercise.name().length() > MAX_LENGTH) {
-      throw new InvalidExerciseException(
-          "An Exercise name has at most " + MAX_LENGTH + " characters");
-    }
-    if (exercise.gear() != null && exercise.gear().length() > MAX_LENGTH) {
-      throw new InvalidExerciseException(
-          exercise.name() + " names gear of at most " + MAX_LENGTH + " characters");
-    }
-    return new Row(
-        exercise.id(),
-        exercise.name(),
-        exercise.name().toLowerCase(Locale.ROOT),
-        exercise.bodyweight(),
-        exercise.hold(),
-        exercise.timed(),
-        exercise.gear());
+  private ExerciseRow listed(UUID id) {
+    return rows.findById(id)
+        .filter(row -> !row.removed())
+        .orElseThrow(() -> new ExerciseNotFoundException(id));
   }
 
-  private static Exercise exercise(ResultSet rs, int rowNum) throws SQLException {
-    return new Exercise(
-        rs.getObject("id", UUID.class),
-        rs.getString("name"),
-        rs.getBoolean("bodyweight"),
-        rs.getBoolean("hold"),
-        rs.getBoolean("timed"),
-        rs.getString("gear"));
+  private void refuseTakenName(Exercise exercise) {
+    if (rows.existsByNameKeyAndIdNot(ExerciseRow.nameKey(exercise.name()), exercise.id())) {
+      throw new ExerciseNameTakenException(exercise.name());
+    }
   }
-
-  /** The named parameters of an Exercise's row. */
-  private record Row(
-      UUID id,
-      String name,
-      String nameKey,
-      boolean bodyweight,
-      boolean hold,
-      boolean timed,
-      String gear) {}
 }

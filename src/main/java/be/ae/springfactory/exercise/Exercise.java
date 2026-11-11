@@ -11,16 +11,25 @@ import java.util.UUID;
  * gear} it needs instead, such as a jump rope. A {@code hold} Exercise, such as the plank, is
  * measured in hold time: each Rep is held for a number of seconds. A {@code timed} Exercise, such as
  * rope skipping, is measured in work time: each Rep is worked for a number of seconds. No Exercise
- * is both a hold and timed (see docs/adr/0006-skipping-is-measured-in-work-time.md).
+ * is both a hold and timed (see docs/adr/0006-skipping-is-measured-in-work-time.md). A name or gear
+ * has at most {@value #MAX_LENGTH} characters, what the catalog keeps.
  */
 public record Exercise(
     UUID id, String name, boolean bodyweight, boolean hold, boolean timed, String gear) {
+
+  /** The longest name or gear an Exercise has. */
+  static final int MAX_LENGTH = 200;
+
   public Exercise {
     Objects.requireNonNull(id, "id");
     if (name == null || name.isBlank()) {
       throw new InvalidExerciseException("An Exercise needs a name");
     }
     name = name.strip();
+    if (name.length() > MAX_LENGTH) {
+      throw new InvalidExerciseException(
+          "An Exercise name has at most " + MAX_LENGTH + " characters");
+    }
     if (hold && timed) {
       throw new InvalidExerciseException(name + " cannot be both a hold and timed");
     }
@@ -32,6 +41,10 @@ public record Exercise(
           name + " is done with a Bell and names no other gear, was " + gear);
     }
     gear = gear == null ? null : gear.strip();
+    if (gear != null && gear.length() > MAX_LENGTH) {
+      throw new InvalidExerciseException(
+          name + " names gear of at most " + MAX_LENGTH + " characters");
+    }
   }
 
   /** An Exercise that needs no gear but a Bell, if it is not bodyweight. */

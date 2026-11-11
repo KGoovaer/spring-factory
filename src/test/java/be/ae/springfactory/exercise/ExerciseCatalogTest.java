@@ -131,7 +131,6 @@ class ExerciseCatalogTest {
     assertThat(added.equipment()).isEqualTo("Box");
     assertThat(catalog.all()).hasSize(13).last().isEqualTo(added);
     assertThat(catalog.get(added.id())).isEqualTo(added);
-    assertThat(ExerciseCatalogs.seeded().all()).hasSize(12);
   }
 
   @Test
