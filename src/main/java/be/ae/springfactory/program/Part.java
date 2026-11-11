@@ -79,7 +79,7 @@ public record Part(
    * How often this Part does the Prescription: once in a Sets Part, once per Round in a Rounds
    * Part, and once per pass of the rotation that reaches its minute in an EMOM.
    */
-  public int timesDone(Prescription prescription) {
+  private int timesDone(Prescription prescription) {
     return switch (format) {
       case SETS -> 1;
       case ROUNDS -> rounds;

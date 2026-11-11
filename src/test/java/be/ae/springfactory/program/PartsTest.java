@@ -60,15 +60,15 @@ class PartsTest {
 
   @Test
   void anEmomThatDoesNotDivideEvenlyDoesItsFirstMinutesOnceMore() {
-    Part emom =
-        Part.emom(10, 4)
-            .withPrescription(inMinute(SWING, null, BELL, 1))
-            .withPrescription(inMinute(SWING, null, BELL, 3));
+    UUID sessionId = newSessionId();
+    programs.addPart(sessionId, Part.emom(10, 4));
+    programs.addPrescription(
+        sessionId, 1, new Prescription(SWING, 1, 5, null, null, null, BELL, null, 1));
+    programs.addPrescription(
+        sessionId, 1, new Prescription(SWING, 1, 1, null, null, null, BELL, null, 3));
 
-    assertThat(emom.timesDone(emom.prescriptions().get(0))).isEqualTo(3);
-    assertThat(emom.timesDone(emom.prescriptions().get(1))).isEqualTo(2);
-    // 3 × 5 × 16 + 2 × 5 × 16
-    assertThat(emom.volume()).isEqualByComparingTo("400");
+    // Minute 1 is done 3 times, minute 3 twice: 3 × 5 × 16 + 2 × 1 × 16
+    assertThat(programs.session(sessionId).volume()).isEqualByComparingTo("272");
   }
 
   @Test
