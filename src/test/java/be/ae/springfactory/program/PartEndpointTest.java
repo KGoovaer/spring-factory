@@ -93,6 +93,8 @@ class PartEndpointTest {
         new String[] {
           "{}",
           "{\"format\":\"ROUNDS\"}",
+          "{\"format\":\"ROUNDS\",\"rounds\":101}",
+          "{\"format\":\"EMOM\",\"minutes\":121,\"rotation\":4}",
           "{\"format\":\"EMOM\",\"minutes\":20}",
           "{\"format\":\"REST\",\"restSeconds\":0}",
           "{\"format\":\"SETS\",\"rounds\":2}",
