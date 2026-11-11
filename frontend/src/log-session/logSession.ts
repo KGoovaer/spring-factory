@@ -6,7 +6,7 @@ import type {
   ProgramResponse,
   Side,
 } from "../api/programs";
-import { partTitle } from "../api/programs";
+import { partTitle, repsLabel, sideLabel } from "../api/programs";
 
 /** An Exercise as the form needs it: whether its Sets take a Bell, a Hold time or a Work time. */
 export type ExerciseInfo = Pick<ExerciseResponse, "id" | "name" | "bodyweight" | "hold" | "timed">;
@@ -20,6 +20,8 @@ export type ExerciseInfo = Pick<ExerciseResponse, "id" | "name" | "bodyweight" |
 export interface SetToLog {
   exercise: ExerciseInfo;
   reps: number;
+  /** The planned rep range, such as "3-4", or null; the row starts at its low end. */
+  repsRange: string | null;
   side: Side | null;
   holdSeconds: number | null;
   workSeconds: number | null;
@@ -33,10 +35,27 @@ export interface SetToLog {
 export type RowToLog =
   { kind: "set"; set: SetToLog } | { kind: "rest"; seconds: number; place: string | null };
 
-/** A Part of the Session as the form lays it out: its title, then its rows in order. */
+/**
+ * An AMRAP as the form lays it out: one Round, a line per Prescription, and
+ * its Score: the whole Rounds and extra Reps logged, or null before it was.
+ */
+export interface AmrapToLog {
+  part: number;
+  round: string[];
+  rounds: number | null;
+  extraReps: number | null;
+}
+
+/**
+ * A Part of the Session as the form lays it out: its title, then its rows in
+ * order. An EMOM or AMRAP has a clock of its minutes; an AMRAP has no Set rows
+ * but a Score to fill in.
+ */
 export interface PartToLog {
   title: string;
   rows: RowToLog[];
+  clock: { format: "EMOM" | "AMRAP"; minutes: number } | null;
+  amrap: AmrapToLog | null;
 }
 
 /** A Session opened for logging: where it sits in its Program, and its Parts. */
@@ -66,6 +85,34 @@ export interface LoggedSetInput {
   holdSeconds: number | null;
   workSeconds: number | null;
   bellKg: number | null;
+}
+
+/** The Score of an AMRAP Part, as the API takes it. */
+export interface ScoreInput {
+  part: number;
+  rounds: number;
+  extraReps: number;
+}
+
+/** A Score as the Lifter fills it in: the values as typed. */
+export interface ScoreEntry {
+  part: number;
+  rounds: string;
+  extraReps: string;
+}
+
+/**
+ * The Scores the Lifter filled in, as the API takes them: an AMRAP whose Rounds
+ * are left blank was not done, and blank extra Reps are 0.
+ */
+export function filledScores(entries: ScoreEntry[]): ScoreInput[] {
+  return entries
+    .filter((entry) => entry.rounds !== "")
+    .map((entry) => ({
+      part: entry.part,
+      rounds: Number(entry.rounds),
+      extraReps: entry.extraReps === "" ? 0 : Number(entry.extraReps),
+    }));
 }
 
 /** A Set as the Lifter fills it in on the form: the values as typed, and whether it was done. */
@@ -102,13 +149,15 @@ export function doneSets(entries: SetEntry[]): LoggedSetInput[] {
 interface LoggedSessionResponse {
   date: string;
   sets: LoggedSetInput[];
+  scores?: ScoreInput[];
 }
 
 /**
  * Loads a Session of a Program for logging: the Program, the Exercise catalog
  * and the Logged Session, if any. Every Part lays out its planned Sets: once in a Part of straight Sets, once per Round in a Rounds Part,
  * and minute by minute in an EMOM, where a minute without Prescriptions is a
- * rest minute. A logged Session fills those rows with its logged Sets, so the
+ * rest minute. An AMRAP lays out one Round and a Score instead of Sets. A
+ * logged Session fills those rows with its logged Sets and Scores, so the
  * Lifter corrects what was saved where it was planned. Throws ApiError when a call fails, and an Error when the
  * Program has no such Session.
  */
@@ -130,7 +179,9 @@ export async function loadSessionToLog(
       hold: false,
       timed: false,
     };
-  const planned = place.session.parts.map((part) => plannedPart(part, exercise));
+  const planned = place.session.parts.map((part) =>
+    withScore(plannedPart(part, exercise), logged?.scores ?? []),
+  );
   const parts = logged ? withLoggedSets(planned, logged.sets, exercise) : planned;
   return {
     programId: program.id,
@@ -152,6 +203,8 @@ function plannedPart(part: PartResponse, exercise: (id: string) => ExerciseInfo)
       set: {
         exercise: exercise(prescription.exerciseId),
         reps: prescription.reps,
+        repsRange:
+          prescription.repsMax === null ? null : repsLabel(prescription.reps, prescription.repsMax),
         side: prescription.side,
         holdSeconds: prescription.holdSeconds,
         workSeconds: prescription.workSeconds,
@@ -162,12 +215,13 @@ function plannedPart(part: PartResponse, exercise: (id: string) => ExerciseInfo)
       },
     }));
   const title = partTitle(part);
+  const base = { title, clock: null, amrap: null };
   switch (part.format) {
     case "SETS":
-      return { title, rows: part.prescriptions.flatMap((p) => sets(p, null)) };
+      return { ...base, rows: part.prescriptions.flatMap((p) => sets(p, null)) };
     case "ROUNDS":
       return {
-        title,
+        ...base,
         rows: Array.from({ length: part.rounds ?? 1 }, (_, round) =>
           part.prescriptions.flatMap((p) => sets(p, `Round ${round + 1}`)),
         ).flat(),
@@ -175,7 +229,8 @@ function plannedPart(part: PartResponse, exercise: (id: string) => ExerciseInfo)
     case "EMOM": {
       const rotation = part.rotation ?? 1;
       return {
-        title,
+        ...base,
+        clock: { format: "EMOM", minutes: part.minutes ?? 1 },
         rows: Array.from({ length: part.minutes ?? 1 }, (_, index): RowToLog[] => {
           const place = `Minute ${index + 1}`;
           const inMinute = part.prescriptions.filter((p) => p.minute === (index % rotation) + 1);
@@ -185,12 +240,53 @@ function plannedPart(part: PartResponse, exercise: (id: string) => ExerciseInfo)
         }).flat(),
       };
     }
+    case "AMRAP":
+      return {
+        ...base,
+        rows: [],
+        clock: { format: "AMRAP", minutes: part.minutes ?? 1 },
+        amrap: {
+          part: part.number,
+          round: part.prescriptions.map((p) => roundLine(p, exercise(p.exerciseId))),
+          rounds: null,
+          extraReps: null,
+        },
+      };
     case "REST":
       return {
-        title,
+        ...base,
         rows: [{ kind: "rest", seconds: part.restSeconds ?? 0, place: null }],
       };
   }
+}
+
+/** One Prescription of an AMRAP Round as a line: "3-4+3-4 Clean · 12 kg". */
+function roundLine(prescription: PrescriptionResponse, exercise: ExerciseInfo): string {
+  const range = repsLabel(prescription.reps, prescription.repsMax);
+  const reps = prescription.side === "EACH" ? sideLabel("EACH", range) : range;
+  const sets = prescription.sets > 1 ? `${prescription.sets} × ` : "";
+  const line = [`${sets}${reps} ${exercise.name}`];
+  if (prescription.side === "LEFT" || prescription.side === "RIGHT") {
+    line.push(sideLabel(prescription.side, prescription.reps));
+  }
+  if (prescription.holdSeconds !== null) {
+    line.push(`hold ${prescription.holdSeconds} s`);
+  }
+  if (prescription.workSeconds !== null) {
+    line.push(`${prescription.workSeconds} s`);
+  }
+  if (prescription.bellKg !== null) {
+    line.push(`${prescription.bellKg} kg`);
+  }
+  return line.join(" · ");
+}
+
+/** The AMRAP Part with the logged Score of its number, if there is one. */
+function withScore(part: PartToLog, scores: ScoreInput[]): PartToLog {
+  const score = part.amrap && scores.find((candidate) => candidate.part === part.amrap?.part);
+  return part.amrap && score
+    ? { ...part, amrap: { ...part.amrap, rounds: score.rounds, extraReps: score.extraReps } }
+    : part;
 }
 
 /**
@@ -202,7 +298,8 @@ export function bellWeightProblem(bellKg: string): string {
 }
 
 /**
- * Logs the Session as performed on `date` with the Sets the Lifter did. The
+ * Logs the Session as performed on `date` with the Sets the Lifter did and the
+ * Score of each AMRAP done. The
  * server checks every rule and answers with ApiError (and its reason) when one
  * is broken, or when the Session has a Logged Session already.
  */
@@ -210,8 +307,9 @@ export async function logSession(
   sessionId: string,
   date: string,
   sets: LoggedSetInput[],
+  scores: ScoreInput[] = [],
 ): Promise<void> {
-  await sendJson("POST", logPath(sessionId), { date, sets });
+  await sendJson("POST", logPath(sessionId), { date, sets, scores });
 }
 
 /**
@@ -222,8 +320,9 @@ export async function correctLoggedSession(
   sessionId: string,
   date: string,
   sets: LoggedSetInput[],
+  scores: ScoreInput[] = [],
 ): Promise<void> {
-  await sendJson("PUT", logPath(sessionId), { date, sets });
+  await sendJson("PUT", logPath(sessionId), { date, sets, scores });
 }
 
 function logPath(sessionId: string): string {
@@ -259,6 +358,7 @@ function withLoggedSets(
       set: {
         exercise: exercise(set.exerciseId),
         reps: set.reps,
+        repsRange: base?.repsRange ?? null,
         side: set.side,
         holdSeconds: set.holdSeconds,
         workSeconds: set.workSeconds,
@@ -275,7 +375,9 @@ function withLoggedSets(
       extra.push(done(null));
     }
   }
-  return extra.length > 0 ? [...parts, { title: "Sets not in the plan", rows: extra }] : parts;
+  return extra.length > 0
+    ? [...parts, { title: "Sets not in the plan", rows: extra, clock: null, amrap: null }]
+    : parts;
 }
 
 async function findLoggedSession(sessionId: string): Promise<LoggedSessionResponse | null> {

@@ -83,6 +83,39 @@ class PartEndpointTest {
   }
 
   @Test
+  void setsUpAnAmrapWithARepRange() throws Exception {
+    String programId = read(post("/api/programs").contentType(MediaType.APPLICATION_JSON)
+        .content("{\"name\":\"AMRAP\"}"), "$.id");
+    String weekId = read(post("/api/programs/{id}/weeks", programId), "$.id");
+    String sessionId = read(post("/api/weeks/{id}/sessions", weekId), "$.id");
+
+    mvc.perform(json(post("/api/sessions/{id}/parts", sessionId),
+            "{\"format\":\"AMRAP\",\"minutes\":12}"))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.parts[0].format").value("AMRAP"))
+        .andExpect(jsonPath("$.parts[0].minutes").value(12));
+    mvc.perform(json(post("/api/sessions/{id}/parts/1/prescriptions", sessionId),
+            "{\"exerciseId\":\"%s\",\"sets\":1,\"reps\":3,\"repsMax\":4,\"bellKg\":16}"
+                .formatted(SWING)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.reps").value(3))
+        .andExpect(jsonPath("$.repsMax").value(4));
+    mvc.perform(json(post("/api/sessions/{id}/parts/1/prescriptions", sessionId),
+            "{\"exerciseId\":\"%s\",\"sets\":1,\"reps\":3,\"repsMax\":2,\"bellKg\":16}"
+                .formatted(SWING)))
+        .andExpect(status().isBadRequest());
+    mvc.perform(json(post("/api/sessions/{id}/parts", sessionId),
+            "{\"format\":\"AMRAP\",\"minutes\":12,\"rotation\":3}"))
+        .andExpect(status().isBadRequest());
+
+    mvc.perform(get("/api/programs/{id}", programId))
+        .andExpect(jsonPath("$.weeks[0].sessions[0].parts[0].prescriptions[0].repsMax").value(4));
+    // One Round of the low end: 3 × 16 kg.
+    mvc.perform(get("/api/programs/{id}/stats", programId))
+        .andExpect(jsonPath("$.weeks[0].sessions[0].plannedVolume").value(48));
+  }
+
+  @Test
   void rejectsAPartOrPrescriptionThatDoesNotFit() throws Exception {
     String programId = read(post("/api/programs").contentType(MediaType.APPLICATION_JSON)
         .content("{\"name\":\"Kettlebell EMOM\"}"), "$.id");

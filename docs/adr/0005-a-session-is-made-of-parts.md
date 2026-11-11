@@ -23,7 +23,9 @@ Part is addressed by its number in the Session, from 1:
   and scale-down options. Its Equipment is derived from its Exercises, never
   typed in.
 
-A Logged Session stays a flat list of Sets: what the Lifter did, in order. The
+A Logged Session stays a flat list of Sets: what the Lifter did, in order.
+(Amended by docs/adr/0008-an-amrap-is-logged-as-a-score.md: an AMRAP Part, added
+later, is logged as a Score next to the Sets.) The
 log page lays out the planned Parts, Rounds and minutes as rows to tick off, but
 it sends only the Sets.
 

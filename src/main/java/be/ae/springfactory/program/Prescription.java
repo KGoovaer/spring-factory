@@ -4,7 +4,8 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
- * What a Session asks for one Exercise: Sets of Reps, on a {@code side} or none, each Rep held
+ * What a Session asks for one Exercise: Sets of Reps (or of {@code reps} to {@code repsMax} Reps,
+ * a rep range such as 3-4, where {@code repsMax} is above {@code reps}), on a {@code side} or none, each Rep held
  * {@code holdSeconds} for a hold Exercise or worked {@code workSeconds} for a timed Exercise, with a
  * Bell of {@code bellKg} kilograms, and optionally {@code restSeconds} of rest. In an EMOM Part,
  * {@code minute} says in which minute of the rotation it is done; elsewhere it is {@code null}.
@@ -17,6 +18,7 @@ public record Prescription(
     UUID exerciseId,
     int sets,
     int reps,
+    Integer repsMax,
     Side side,
     Integer holdSeconds,
     Integer workSeconds,
@@ -33,6 +35,10 @@ public record Prescription(
     if (reps < 1) {
       throw new InvalidPrescriptionException("Reps must be at least 1, was " + reps);
     }
+    if (repsMax != null && repsMax <= reps) {
+      throw new InvalidPrescriptionException(
+          "A rep range must end above its " + reps + " Reps, was " + reps + "-" + repsMax);
+    }
     if (holdSeconds != null && holdSeconds < 1) {
       throw new InvalidPrescriptionException("Hold time must be at least 1 s, was " + holdSeconds);
     }
@@ -48,6 +54,21 @@ public record Prescription(
     if (minute != null && minute < 1) {
       throw new InvalidPrescriptionException("The minute must be at least 1, was " + minute);
     }
+  }
+
+  /** A Prescription of an exact number of Reps, not a range. */
+  public Prescription(
+      UUID exerciseId,
+      int sets,
+      int reps,
+      Side side,
+      Integer holdSeconds,
+      Integer workSeconds,
+      BigDecimal bellKg,
+      Integer restSeconds,
+      Integer minute) {
+    this(
+        exerciseId, sets, reps, null, side, holdSeconds, workSeconds, bellKg, restSeconds, minute);
   }
 
   /** A Prescription without a Side, work time or minute. */
@@ -69,12 +90,19 @@ public record Prescription(
 
   /**
    * Volume of this Prescription done once: Sets × Reps × Bell weight, Reps counted twice on {@code
-   * EACH} side, and 0 without a Bell.
+   * EACH} side, and 0 without a Bell. A rep range counts its low end: what the Lifter commits to.
    */
   public BigDecimal volume() {
-    if (bellKg == null) {
-      return BigDecimal.ZERO;
-    }
-    return bellKg.multiply(BigDecimal.valueOf((long) sets * reps * Side.repsFactor(side)));
+    return volume(repsDone());
+  }
+
+  /** The Reps done once through this Prescription: Sets × Reps, twice on {@code EACH} side. */
+  int repsDone() {
+    return sets * reps * Side.repsFactor(side);
+  }
+
+  /** Volume of {@code reps} Reps of this Prescription, as counted by {@link #repsDone()}. */
+  BigDecimal volume(int reps) {
+    return bellKg == null ? BigDecimal.ZERO : bellKg.multiply(BigDecimal.valueOf(reps));
   }
 }

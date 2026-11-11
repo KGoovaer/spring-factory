@@ -7,8 +7,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -17,9 +19,10 @@ import java.util.stream.Collectors;
  *
  * <ul>
  *   <li>{@code plannedVolume}: Sets × Reps × Bell weight, summed over the Week's Prescriptions; a
- *       Prescription without a Bell adds 0.
+ *       Prescription without a Bell adds 0, a rep range counts its low end, and an AMRAP one Round.
  *   <li>{@code loggedVolume}: Reps × Bell weight, summed over every logged Set of the Week's
  *       Sessions, including Exercises the Session did not prescribe; a Set without a Bell adds 0.
+ *       The Score of an AMRAP adds its whole Rounds and then its extra Reps, as its Part counts them.
  *   <li>{@code adherence}: the percentage of the Week's Sessions that have a Logged Session, rounded
  *       half up to 2 decimals ({@code 66.67}); {@code null} for a Week without Sessions. A Logged
  *       Session counts whatever its date.
@@ -53,8 +56,12 @@ public record WeekStats(
 
     BigDecimal plannedVolume =
         week.sessions().stream().map(Session::volume).reduce(BigDecimal.ZERO, BigDecimal::add);
+    Map<UUID, Session> planned =
+        week.sessions().stream().collect(Collectors.toMap(Session::id, Function.identity()));
     BigDecimal loggedVolume =
-        logged.stream().map(LoggedSession::volume).reduce(BigDecimal.ZERO, BigDecimal::add);
+        logged.stream()
+            .map(log -> log.volume(planned.get(log.sessionId())))
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
     Set<UUID> loggedSessionIds =
         logged.stream().map(LoggedSession::sessionId).collect(Collectors.toSet());
     List<SessionStats> sessions =

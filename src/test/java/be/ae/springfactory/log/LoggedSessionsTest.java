@@ -62,7 +62,7 @@ class LoggedSessionsTest {
                 new LoggedSet(SWING, 8, Side.EACH, null, null, new BigDecimal("16")),
                 new LoggedSet(SWING, 8, Side.LEFT, null, null, new BigDecimal("16"))));
 
-    assertThat(logged.volume()).isEqualByComparingTo("384");
+    assertThat(logged.volume(programs.session(logged.sessionId()))).isEqualByComparingTo("384");
   }
 
   @Test
@@ -212,7 +212,7 @@ class LoggedSessionsTest {
 
     assertThat(loggedSessions.get(sessionId).sets()).isEqualTo(sets);
     assertThat(logged.sets().get(1).volume()).isZero();
-    assertThat(logged.volume()).isEqualByComparingTo("240");
+    assertThat(logged.volume(programs.session(logged.sessionId()))).isEqualByComparingTo("240");
   }
 
   @Test
@@ -251,7 +251,7 @@ class LoggedSessionsTest {
         loggedSessions.log(sessionId, DAY, List.of(new LoggedSet(PLANK, 2, 45, null)));
 
     assertThat(logged.sets().getFirst().holdSeconds()).isEqualTo(45);
-    assertThat(logged.volume()).isZero();
+    assertThat(logged.volume(programs.session(logged.sessionId()))).isZero();
   }
 
   @Test

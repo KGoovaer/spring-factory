@@ -6,7 +6,7 @@ import type {
   ProgramResponse,
   Side,
 } from "../api/programs";
-import { sideLabel } from "../api/programs";
+import { repsLabel, sideLabel } from "../api/programs";
 
 /** A Program as the setup page shows it, with the Exercises a Lifter can prescribe. */
 export interface ProgramSetup {
@@ -28,6 +28,7 @@ export interface NewPrescription {
   exerciseId: string;
   sets: number;
   reps: number;
+  repsMax: number | null;
   side: Side | null;
   holdSeconds: number | null;
   workSeconds: number | null;
@@ -100,7 +101,8 @@ export async function addExercise(exercise: NewExercise): Promise<void> {
 
 /**
  * A Prescription as one line, the way a Lifter writes it: "3 × 8+8 Clean to
- * waiter press · 16 kg", "5 × Swing · Right · 16 kg", "1 × 45 s Skipping".
+ * waiter press · 16 kg", "5 × Swing · Right · 16 kg", "1 × 45 s Skipping",
+ * "2 × 3-4 Swing · 24 kg".
  */
 export function describePrescription(
   prescription: PrescriptionResponse,
@@ -109,8 +111,8 @@ export function describePrescription(
   const name =
     exercises.find((exercise) => exercise.id === prescription.exerciseId)?.name ??
     "Unknown Exercise";
-  const reps =
-    prescription.side === "EACH" ? sideLabel("EACH", prescription.reps) : String(prescription.reps);
+  const range = repsLabel(prescription.reps, prescription.repsMax);
+  const reps = prescription.side === "EACH" ? sideLabel("EACH", range) : range;
   const parts = [`${prescription.sets} × ${reps} ${name}`];
   if (prescription.side === "LEFT" || prescription.side === "RIGHT") {
     parts.push(sideLabel(prescription.side, prescription.reps));

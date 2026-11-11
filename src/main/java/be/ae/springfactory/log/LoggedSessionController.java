@@ -24,7 +24,7 @@ class LoggedSessionController {
   @PostMapping("/api/sessions/{id}/log")
   ResponseEntity<LoggedSessionResponse> log(
       @PathVariable UUID id, @Valid @RequestBody LogSessionRequest request) {
-    LoggedSession logged = loggedSessions.log(id, request.date(), request.toLoggedSets());
+    LoggedSession logged = loggedSessions.log(id, request.date(), request.toLoggedSets(), request.toScores());
     return ResponseEntity.status(HttpStatus.CREATED).body(LoggedSessionResponse.of(logged));
   }
 
@@ -32,7 +32,8 @@ class LoggedSessionController {
   LoggedSessionResponse correct(
       @PathVariable UUID id, @Valid @RequestBody LogSessionRequest request) {
     return LoggedSessionResponse.of(
-        loggedSessions.correct(id, request.date(), request.toLoggedSets()));
+        loggedSessions.correct(
+            id, request.date(), request.toLoggedSets(), request.toScores()));
   }
 
   @GetMapping("/api/sessions/{id}/log")

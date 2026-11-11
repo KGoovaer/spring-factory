@@ -298,6 +298,47 @@ class LoggedSessionEndpointTest {
         .andExpect(status().isBadRequest());
   }
 
+  @Test
+  void logsTheScoreOfAnAmrapAndCountsItInLoggedVolume() throws Exception {
+    String programId = read(mvc.perform(createProgram()), "$.id");
+    String weekId = read(mvc.perform(post("/api/programs/{id}/weeks", programId)), "$.id");
+    String sessionId = read(mvc.perform(post("/api/weeks/{id}/sessions", weekId)), "$.id");
+    mvc.perform(
+        post("/api/sessions/{id}/parts", sessionId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"format\":\"AMRAP\",\"minutes\":10}"));
+    mvc.perform(
+        post("/api/sessions/{id}/parts/1/prescriptions", sessionId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(
+                "{\"exerciseId\":\"%s\",\"sets\":1,\"reps\":10,\"bellKg\":16}"
+                    .formatted(SWING)));
+
+    mvc.perform(
+            log(sessionId, "{\"date\":\"2026-11-11\",\"scores\":[{\"part\":1,\"rounds\":5,\"extraReps\":4}]}"))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.sets.length()").value(0))
+        .andExpect(jsonPath("$.scores[0].part").value(1))
+        .andExpect(jsonPath("$.scores[0].rounds").value(5))
+        .andExpect(jsonPath("$.scores[0].extraReps").value(4));
+    mvc.perform(get("/api/sessions/{id}/log", sessionId))
+        .andExpect(jsonPath("$.scores[0].rounds").value(5));
+    // 54 swings at 16 kg.
+    mvc.perform(get("/api/weeks/{id}/stats", weekId))
+        .andExpect(jsonPath("$.loggedVolume").value(864));
+
+    for (String body :
+        new String[] {
+          "{\"date\":\"2026-11-11\",\"scores\":[{\"part\":1,\"rounds\":5,\"extraReps\":10}]}",
+          "{\"date\":\"2026-11-11\",\"scores\":[{\"part\":2,\"rounds\":5,\"extraReps\":0}]}",
+          "{\"date\":\"2026-11-11\",\"scores\":[{\"part\":1,\"rounds\":-1,\"extraReps\":0}]}",
+          "{\"date\":\"2026-11-11\",\"scores\":[{\"part\":1}]}",
+          "{\"date\":\"2026-11-11\"}"
+        }) {
+      mvc.perform(correct(sessionId, body)).andExpect(status().isBadRequest());
+    }
+  }
+
   private static String oneSet(String bell) {
     return "{\"date\":\"2026-11-07\",\"sets\":[{\"exerciseId\":\"%s\",\"reps\":10,%s}]}"
         .formatted(SWING, bell);

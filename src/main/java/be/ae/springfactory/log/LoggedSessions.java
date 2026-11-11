@@ -2,7 +2,10 @@ package be.ae.springfactory.log;
 
 import be.ae.springfactory.exercise.Exercise;
 import be.ae.springfactory.exercise.ExerciseCatalog;
+import be.ae.springfactory.program.Part;
+import be.ae.springfactory.program.PartFormat;
 import be.ae.springfactory.program.Programs;
+import be.ae.springfactory.program.Session;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -40,7 +43,18 @@ public class LoggedSessions {
    * SessionAlreadyLoggedException} when the Session has a Logged Session already.
    */
   public LoggedSession log(UUID sessionId, LocalDate date, List<LoggedSet> sets) {
-    LoggedSession logged = validated(sessionId, date, sets);
+    return log(sessionId, date, sets, List.of());
+  }
+
+  /**
+   * Logs the Session as {@link #log(UUID, LocalDate, List)} does, with the Score of each AMRAP Part
+   * done. A Logged Session needs at least one Set or Score. Also throws {@link
+   * InvalidLoggedSessionException} for a Score of a Part the Session does not have or that is no
+   * AMRAP, two Scores of one Part, or extra Reps that make a whole Round.
+   */
+  public LoggedSession log(
+      UUID sessionId, LocalDate date, List<LoggedSet> sets, List<Score> scores) {
+    LoggedSession logged = validated(sessionId, date, sets, scores);
     if (logs.putIfAbsent(sessionId, logged) != null) {
       throw new SessionAlreadyLoggedException(sessionId);
     }
@@ -55,7 +69,16 @@ public class LoggedSessions {
    * SessionAlreadyLoggedException}: only a Session that was logged can be corrected.
    */
   public LoggedSession correct(UUID sessionId, LocalDate date, List<LoggedSet> sets) {
-    LoggedSession corrected = validated(sessionId, date, sets);
+    return correct(sessionId, date, sets, List.of());
+  }
+
+  /**
+   * Corrects the Logged Session as {@link #correct(UUID, LocalDate, List)} does, replacing its
+   * Scores too. The Scores follow the rules of {@link #log(UUID, LocalDate, List, List)}.
+   */
+  public LoggedSession correct(
+      UUID sessionId, LocalDate date, List<LoggedSet> sets, List<Score> scores) {
+    LoggedSession corrected = validated(sessionId, date, sets, scores);
     if (logs.replace(sessionId, corrected) == null) {
       throw new LoggedSessionNotFoundException(sessionId);
     }
@@ -66,9 +89,13 @@ public class LoggedSessions {
    * The Logged Session these values make, once the Session exists and every Set fits its Exercise in
    * the catalog; throws as {@link #log} documents otherwise.
    */
-  private LoggedSession validated(UUID sessionId, LocalDate date, List<LoggedSet> sets) {
-    programs.session(sessionId);
-    LoggedSession logged = new LoggedSession(sessionId, date, sets);
+  private LoggedSession validated(
+      UUID sessionId, LocalDate date, List<LoggedSet> sets, List<Score> scores) {
+    Session session = programs.session(sessionId);
+    LoggedSession logged = new LoggedSession(sessionId, date, sets, scores);
+    for (Score score : logged.scores()) {
+      fits(session, score);
+    }
     for (LoggedSet set : logged.sets()) {
       Exercise exercise = exercises.get(set.exerciseId());
       exercise
@@ -79,6 +106,25 @@ public class LoggedSessions {
               });
     }
     return logged;
+  }
+
+  private static void fits(Session session, Score score) {
+    if (score.part() > session.parts().size()) {
+      throw new InvalidLoggedSessionException(
+          "This Session has no Part " + score.part() + " to score");
+    }
+    Part part = session.parts().get(score.part() - 1);
+    if (part.format() != PartFormat.AMRAP) {
+      throw new InvalidLoggedSessionException(
+          "Part " + score.part() + " is no AMRAP, so it has no Score");
+    }
+    if (score.extraReps() > 0 && score.extraReps() >= part.repsPerRound()) {
+      throw new InvalidLoggedSessionException(
+          score.extraReps()
+              + " extra Reps make a whole Round of "
+              + part.repsPerRound()
+              + " Reps: count it as a Round");
+    }
   }
 
   /**

@@ -3,18 +3,22 @@ import { Link } from "react-router-dom";
 import { errorMessage } from "../api/client";
 import { sideLabel } from "../api/programs";
 import { HoldTimer } from "./HoldTimer";
+import { PartClockView } from "./PartClockView";
 import { RestTimer } from "./RestTimer";
 import {
   bellWeightProblem,
   correctLoggedSession,
   doneSets,
+  filledScores,
   logSession,
+  type ScoreEntry,
   type SessionToLog,
   type SetEntry,
 } from "./logSession";
 
 interface SetRow extends SetEntry {
   key: number;
+  repsRange: string | null;
   restSeconds: number | null;
   place: string | null;
 }
@@ -38,7 +42,8 @@ const COLUMNS = 8;
  * starts its prescribed rest; a rest row starts its rest on demand. Only the
  * Sets marked done are logged, so only their fields are required; a Logged
  * Session opens with its Sets done in the rows they were planned in, so saving
- * again corrects it.
+ * again corrects it. An EMOM or AMRAP has a clock to start; an AMRAP is logged
+ * as its Score, the Rounds and extra Reps done, rather than as Sets.
  */
 export function LogSessionForm({ session, today }: { session: SessionToLog; today: string }) {
   const [date, setDate] = useState(session.loggedDate ?? today);
@@ -46,6 +51,8 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
     let key = 0;
     return session.parts.map((part, partIndex) => ({
       title: part.title,
+      clock: part.clock,
+      amrap: part.amrap,
       rows: part.rows.map((row, rowIndex): LayoutRow =>
         row.kind === "set"
           ? { kind: "set", key: key++ }
@@ -66,6 +73,7 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
         exercise: set.exercise,
         side: set.side,
         reps: String(set.reps),
+        repsRange: set.repsRange,
         bellKg: set.bellKg === null ? "" : String(set.bellKg),
         holdSeconds: set.holdSeconds === null ? "" : String(set.holdSeconds),
         workSeconds: set.workSeconds === null ? "" : String(set.workSeconds),
@@ -73,6 +81,19 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
         place: set.place,
         done: set.done,
       })),
+  );
+  const [scores, setScores] = useState<ScoreEntry[]>(() =>
+    session.parts.flatMap((part) =>
+      part.amrap
+        ? [
+            {
+              part: part.amrap.part,
+              rounds: part.amrap.rounds === null ? "" : String(part.amrap.rounds),
+              extraReps: part.amrap.extraReps === null ? "" : String(part.amrap.extraReps),
+            },
+          ]
+        : [],
+    ),
   );
   const [logged, setLogged] = useState(session.loggedDate !== null);
   const [rest, setRest] = useState<{
@@ -104,14 +125,22 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
     }
   };
 
+  const updateScore = (part: number, change: Partial<ScoreEntry>) => {
+    edited();
+    setScores((current) =>
+      current.map((score) => (score.part === part ? { ...score, ...change } : score)),
+    );
+  };
+
   const done = doneSets(rows);
+  const scored = filledScores(scores);
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
     setSaving({ status: "saving" });
     try {
       const send = logged ? correctLoggedSession : logSession;
-      await send(session.sessionId, date, done);
+      await send(session.sessionId, date, done, scored);
       setLogged(true);
       setSaving({ status: "saved" });
     } catch (error) {
@@ -164,7 +193,7 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
         />
       )}
 
-      {layout.every((part) => part.rows.length === 0) ? (
+      {layout.every((part) => part.rows.length === 0 && !part.amrap) ? (
         <p>This Session has no Prescriptions yet.</p>
       ) : (
         <table className="log-sets">
@@ -187,6 +216,24 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
                   {part.title}
                 </th>
               </tr>
+              {part.clock && (
+                <tr className="clock-row">
+                  <td colSpan={COLUMNS}>
+                    <PartClockView
+                      format={part.clock.format}
+                      minutes={part.clock.minutes}
+                      name={part.title}
+                    />
+                  </td>
+                </tr>
+              )}
+              {part.amrap && (
+                <AmrapRow
+                  amrap={part.amrap}
+                  score={scores.find((score) => score.part === part.amrap?.part)}
+                  update={updateScore}
+                />
+              )}
               {part.rows.map((item) =>
                 item.kind === "rest" ? (
                   <tr key={item.key} className="rest-row">
@@ -228,12 +275,13 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
         <button
           type="submit"
           className="primary"
-          disabled={done.length === 0 || saving.status === "saving"}
+          disabled={(done.length === 0 && scored.length === 0) || saving.status === "saving"}
         >
           {logged ? "Correct Logged Session" : "Log Session"}
         </button>
         <span>
           {done.length} of {rows.length} Sets done
+          {scores.length > 0 && `, ${scored.length} of ${scores.length} AMRAPs scored`}
         </span>
       </div>
       {saving.status === "saved" && <p role="status">Logged Session saved.</p>}
@@ -243,6 +291,48 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
         </div>
       )}
     </form>
+  );
+}
+
+/** One Round of an AMRAP, and its Score: whole Rounds and extra Reps into the next. */
+function AmrapRow({
+  amrap,
+  score,
+  update,
+}: {
+  amrap: NonNullable<SessionToLog["parts"][number]["amrap"]>;
+  score: ScoreEntry | undefined;
+  update: (part: number, change: Partial<ScoreEntry>) => void;
+}) {
+  const name = `Part ${amrap.part}`;
+  return (
+    <tr className="amrap-row">
+      <td colSpan={COLUMNS}>
+        <p className="amrap-round">
+          <strong>One Round:</strong> {amrap.round.length > 0 ? amrap.round.join("; ") : "–"}
+        </p>
+        <label>
+          Rounds{" "}
+          <input
+            type="number"
+            min={0}
+            aria-label={`${name} Rounds`}
+            value={score?.rounds ?? ""}
+            onChange={(e) => update(amrap.part, { rounds: e.target.value })}
+          />
+        </label>{" "}
+        <label>
+          + extra Reps{" "}
+          <input
+            type="number"
+            min={0}
+            aria-label={`${name} extra Reps`}
+            value={score?.extraReps ?? ""}
+            onChange={(e) => update(amrap.part, { extraReps: e.target.value })}
+          />
+        </label>
+      </td>
+    </tr>
   );
 }
 
@@ -275,6 +365,7 @@ function SetRowView({
           value={row.reps}
           onChange={(e) => update(row.key, { reps: e.target.value })}
         />
+        {row.repsRange && <span className="rep-range"> of {row.repsRange}</span>}
       </td>
       <td>
         {row.exercise.hold && (
