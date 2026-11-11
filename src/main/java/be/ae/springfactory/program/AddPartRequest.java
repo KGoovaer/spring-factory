@@ -7,8 +7,8 @@ import java.util.List;
 
 /**
  * The body of POST /api/sessions/{id}/parts: {format, rounds, minutes, rotation, restSeconds}. A
- * ROUNDS Part gives rounds, an EMOM gives minutes and rotation, a REST Part gives restSeconds, and
- * a SETS Part none of them. A Part has at most 100 Rounds and an EMOM at most 120 minutes.
+ * ROUNDS Part gives rounds, an EMOM gives minutes and rotation, an AMRAP gives minutes (its time cap), a REST Part gives restSeconds, and
+ * a SETS Part none of them. A Part has at most 100 Rounds and an EMOM or AMRAP at most 120 minutes.
  */
 record AddPartRequest(
     @NotNull PartFormat format,

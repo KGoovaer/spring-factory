@@ -54,6 +54,7 @@ const SESSION = {
           exerciseId: SWING,
           sets: 1,
           reps: 5,
+          repsMax: null,
           side: "RIGHT",
           holdSeconds: null,
           workSeconds: null,
@@ -65,6 +66,7 @@ const SESSION = {
           exerciseId: SKIPPING,
           sets: 1,
           reps: 1,
+          repsMax: null,
           side: null,
           holdSeconds: null,
           workSeconds: 45,
@@ -176,6 +178,7 @@ describe("ProgramSetupPage", () => {
       exerciseId: SWING,
       sets: 1,
       reps: 8,
+      repsMax: null,
       side: "EACH",
       holdSeconds: null,
       workSeconds: null,
@@ -303,6 +306,71 @@ describe("HomePage", () => {
     expect(screen.getByText("This Program has no Weeks yet.")).toBeInTheDocument();
     expect(sent(fetch, "POST", "/api/programs")).toEqual({ name: "Kettlebell EMOM" });
   });
+
+  it("adds an AMRAP with its time cap and a rep range without rest", async () => {
+    const amrap = part({
+      number: 4,
+      format: "AMRAP",
+      minutes: 12,
+      prescriptions: [
+        {
+          exerciseId: SWING,
+          sets: 1,
+          reps: 3,
+          repsMax: 4,
+          side: "EACH",
+          holdSeconds: null,
+          workSeconds: null,
+          bellKg: 16,
+          restSeconds: null,
+          minute: null,
+        },
+      ],
+    });
+    const program = {
+      ...PROGRAM,
+      weeks: [
+        { id: "w1", number: 1, sessions: [{ ...SESSION, parts: [...SESSION.parts, amrap] }] },
+      ],
+    };
+    const fetch = serve({
+      "GET /api/programs/p1": [200, program],
+      "GET /api/exercises": [200, EXERCISES],
+      "POST /api/sessions/s1/parts": [201, SESSION],
+      "POST /api/sessions/s1/parts/4/prescriptions": [201, {}],
+    });
+    renderAt("/programs/p1/setup");
+    const region = await screen.findByRole("region", { name: "Part 4 · 12 min AMRAP" });
+
+    expect(within(region).getByText("1 × 3-4+3-4 Swing · 16 kg")).toBeInTheDocument();
+    const form = within(region).getByRole("form", { name: "Add Prescription" });
+    expect(within(form).queryByLabelText("Rest (s)")).not.toBeInTheDocument();
+    fireEvent.change(within(form).getByLabelText("Exercise"), { target: { value: SWING } });
+    fireEvent.change(within(form).getByLabelText("Reps"), { target: { value: "8" } });
+    fireEvent.change(within(form).getByLabelText("Up to Reps"), { target: { value: "10" } });
+    fireEvent.change(within(form).getByLabelText("Bell (kg)"), { target: { value: "24" } });
+    fireEvent.click(within(form).getByRole("button", { name: "Add Prescription" }));
+    await vi.waitFor(() =>
+      expect(sent(fetch, "POST", "/api/sessions/s1/parts/4/prescriptions")).toMatchObject({
+        reps: 8,
+        repsMax: 10,
+        restSeconds: null,
+      }),
+    );
+
+    const addPart = screen.getByRole("form", { name: "Add Part" });
+    fireEvent.change(within(addPart).getByLabelText("Format"), { target: { value: "AMRAP" } });
+    fireEvent.change(within(addPart).getByLabelText("Time cap (minutes)"), {
+      target: { value: "15" },
+    });
+    fireEvent.click(within(addPart).getByRole("button", { name: "Add Part" }));
+    await vi.waitFor(() =>
+      expect(sent(fetch, "POST", "/api/sessions/s1/parts")).toEqual({
+        format: "AMRAP",
+        minutes: 15,
+      }),
+    );
+  });
 });
 
 const ROUNDS_WITH_PRESS = part({
@@ -314,6 +382,7 @@ const ROUNDS_WITH_PRESS = part({
       exerciseId: SWING,
       sets: 1,
       reps: 8,
+      repsMax: null,
       side: "EACH",
       holdSeconds: null,
       workSeconds: null,

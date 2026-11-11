@@ -18,10 +18,14 @@ import java.util.Objects;
  *       rotation of {@code rotation} minutes (both at least 1, the rotation at most the minutes).
  *       Each Prescription names the minute of the rotation it is done in; a minute without
  *       Prescriptions is a rest minute.
+ *   <li>{@code AMRAP}: as many Rounds as possible in {@code minutes} (at least 1), the time cap.
+ *       Its planned Volume counts one Round; what the Lifter did is logged as a Score of Rounds and
+ *       extra Reps (see docs/adr/0008-an-amrap-is-logged-as-a-score.md).
  *   <li>{@code REST}: {@code restSeconds} (at least 1) of rest and no Prescriptions.
  * </ul>
  *
- * Only an EMOM Prescription has a minute, and it has no rest of its own. Immutable: adding a Prescription yields a new Part.
+ * Only an EMOM Prescription has a minute, and neither an EMOM nor an AMRAP Prescription has rest
+ * of its own. Immutable: adding a Prescription yields a new Part.
  */
 public record Part(
     PartFormat format,
@@ -36,7 +40,7 @@ public record Part(
     }
     prescriptions = List.copyOf(prescriptions);
     takes(format == PartFormat.ROUNDS, "Rounds", rounds, format);
-    takes(format == PartFormat.EMOM, "minutes", minutes, format);
+    takes(format == PartFormat.EMOM || format == PartFormat.AMRAP, "minutes", minutes, format);
     takes(format == PartFormat.EMOM, "rotation", rotation, format);
     takes(format == PartFormat.REST, "rest", restSeconds, format);
     if (format == PartFormat.EMOM && rotation > minutes) {
@@ -63,6 +67,11 @@ public record Part(
     return new Part(PartFormat.EMOM, null, minutes, rotation, null, List.of());
   }
 
+  /** As many Rounds as possible in {@code minutes} minutes, with no Prescriptions yet. */
+  public static Part amrap(int minutes) {
+    return new Part(PartFormat.AMRAP, null, minutes, null, null, List.of());
+  }
+
   /** {@code seconds} of rest between Parts. */
   public static Part rest(int seconds) {
     return new Part(PartFormat.REST, null, null, null, seconds, List.of());
@@ -76,12 +85,58 @@ public record Part(
   }
 
   /**
+   * The Reps of one Round of an AMRAP, the Prescriptions' Reps summed (twice on Each side, the low
+   * end of a rep range). Extra Reps of a Score are fewer than this.
+   */
+  public long repsPerRound() {
+    return prescriptions.stream().mapToLong(Prescription::repsDone).sum();
+  }
+
+  /**
+   * Whether {@code extraReps} Reps into the next Round of an AMRAP stay short of a whole one, as
+   * the extra Reps of a Score must. No extra Reps always do.
+   */
+  public boolean isShortOfARound(int extraReps) {
+    return extraReps == 0 || extraReps < repsPerRound();
+  }
+
+  /**
+   * Volume of an AMRAP Score: {@code rounds} whole Rounds, then {@code extraReps} Reps taken
+   * through the Prescriptions in order, each at its own Bell. Throws {@link InvalidPartException}
+   * for a Part that is not an AMRAP, negative Rounds or Reps, or extra Reps that make a whole Round.
+   */
+  public BigDecimal volume(int rounds, int extraReps) {
+    if (format != PartFormat.AMRAP) {
+      throw new InvalidPartException("Only an AMRAP Part has a Score, not a " + format + " Part");
+    }
+    if (rounds < 0 || extraReps < 0) {
+      throw new InvalidPartException(
+          "A Score cannot be negative, was " + rounds + " Rounds + " + extraReps + " Reps");
+    }
+    if (!isShortOfARound(extraReps)) {
+      throw new InvalidPartException(
+          extraReps
+              + " extra Reps make a whole Round of "
+              + repsPerRound()
+              + " Reps: count it as a Round");
+    }
+    BigDecimal volume = volume().multiply(BigDecimal.valueOf(rounds));
+    long left = extraReps;
+    for (Prescription prescription : prescriptions) {
+      long reps = Math.min(left, prescription.repsDone());
+      volume = volume.add(prescription.volume(reps));
+      left -= reps;
+    }
+    return volume;
+  }
+
+  /**
    * How often this Part does the Prescription: once in a Sets Part, once per Round in a Rounds
    * Part, and once per pass of the rotation that reaches its minute in an EMOM.
    */
   private int timesDone(Prescription prescription) {
     return switch (format) {
-      case SETS -> 1;
+      case SETS, AMRAP -> 1;
       case ROUNDS -> rounds;
       case EMOM ->
           minutes / rotation + (prescription.minute() <= minutes % rotation ? 1 : 0);
@@ -116,7 +171,11 @@ public record Part(
             "A Prescription in an EMOM takes no rest: the Lifter rests for what is left of the"
                 + " minute");
       }
-    } else if (prescription.minute() != null) {
+    } else if (format == PartFormat.AMRAP && prescription.restSeconds() != null) {
+      throw new InvalidPartException(
+          "A Prescription in an AMRAP takes no rest: the Lifter rests at will within the time cap");
+    }
+    if (format != PartFormat.EMOM && prescription.minute() != null) {
       throw new InvalidPartException("Only a Prescription in an EMOM has a minute");
     }
   }

@@ -294,3 +294,36 @@ body {
   list-style: none;
   padding-left: 1rem;
 }
+
+.part-clock {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.part-clock [role="timer"] {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.part-clock.over [role="timer"] {
+  color: #1a7f37;
+}
+
+.log-sets .amrap-row label {
+  margin-right: 1rem;
+}
+
+.log-sets .amrap-row input {
+  width: 5rem;
+}
+
+.amrap-round {
+  margin: 0 0 0.5rem;
+}
+
+.rep-range {
+  font-size: 0.75rem;
+  color: #4b5563;
+}

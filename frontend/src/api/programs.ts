@@ -7,13 +7,15 @@
 /** Which side a Prescription or Set works: one side, or Each side in turn (8+8). */
 export type Side = "LEFT" | "RIGHT" | "EACH";
 
-/** How a Part is done: straight Sets, Rounds, an EMOM, or only rest. */
-export type PartFormat = "SETS" | "ROUNDS" | "EMOM" | "REST";
+/** How a Part is done: straight Sets, Rounds, an EMOM, an AMRAP, or only rest. */
+export type PartFormat = "SETS" | "ROUNDS" | "EMOM" | "AMRAP" | "REST";
 
 export interface PrescriptionResponse {
   exerciseId: string;
   sets: number;
   reps: number;
+  /** The top of a rep range such as 3-4, or null for an exact number of Reps. */
+  repsMax: number | null;
   side: Side | null;
   holdSeconds: number | null;
   workSeconds: number | null;
@@ -76,9 +78,45 @@ export function sideLabel(side: Side | null, reps: number | string): string {
   }
 }
 
+/** Reps as a Lifter writes them: "5", or "3-4" for a rep range. */
+export function repsLabel(reps: number, repsMax: number | null): string {
+  return repsMax === null ? String(reps) : `${reps}-${repsMax}`;
+}
+
+/**
+ * A Prescription of the Exercise `name` as a Lifter writes it, without its
+ * Sets: "8+8 Clean to waiter press · 16 kg", "5 Swing · Right · 16 kg",
+ * "3-4 Swing · 24 kg · rest 60 s".
+ */
+export function prescriptionLine(
+  prescription: PrescriptionResponse,
+  name: string
+): string {
+  const range = repsLabel(prescription.reps, prescription.repsMax);
+  const reps = prescription.side === "EACH" ? sideLabel("EACH", range) : range;
+  const line = [`${reps} ${name}`];
+  if (prescription.side === "LEFT" || prescription.side === "RIGHT") {
+    line.push(sideLabel(prescription.side, prescription.reps));
+  }
+  if (prescription.holdSeconds !== null) {
+    line.push(`hold ${prescription.holdSeconds} s`);
+  }
+  if (prescription.workSeconds !== null) {
+    line.push(`${prescription.workSeconds} s`);
+  }
+  if (prescription.bellKg !== null) {
+    line.push(`${prescription.bellKg} kg`);
+  }
+  if (prescription.restSeconds) {
+    line.push(`rest ${prescription.restSeconds} s`);
+  }
+  return line.join(" · ");
+}
+
 /**
  * How a Part is titled, on the setup and the log page alike: "Part 1 · 20 min
- * EMOM, rotating through 4 minutes", "Part 2 · Rest 60 s", "Part 3 · 3 Rounds".
+ * EMOM, rotating through 4 minutes", "Part 2 · Rest 60 s", "Part 3 · 3 Rounds",
+ * "Part 4 · 12 min AMRAP".
  */
 export function partTitle(part: PartResponse): string {
   const title = `Part ${part.number} · `;
@@ -89,6 +127,8 @@ export function partTitle(part: PartResponse): string {
       return `${title}${part.rounds} Rounds`;
     case "EMOM":
       return `${title}${part.minutes} min EMOM, rotating through ${part.rotation} minutes`;
+    case "AMRAP":
+      return `${title}${part.minutes} min AMRAP`;
     case "REST":
       return `${title}Rest ${part.restSeconds} s`;
   }

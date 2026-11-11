@@ -34,6 +34,7 @@ const EXERCISES = [
 function prescription(fields: Record<string, unknown>) {
   return {
     sets: 1,
+    repsMax: null,
     side: null,
     holdSeconds: null,
     workSeconds: null,
@@ -122,6 +123,35 @@ const EMOM_SESSION = {
   ],
 };
 
+/** A 12 min AMRAP of 3-4+3-4 presses and 10 swings, after a Part of 3-5 swings. */
+const AMRAP_SESSION = {
+  id: "s5",
+  notes: null,
+  equipment: ["Kettlebell"],
+  parts: [
+    part({
+      number: 1,
+      format: "SETS",
+      prescriptions: [prescription({ exerciseId: SWING, reps: 3, repsMax: 5, bellKg: 24 })],
+    }),
+    part({
+      number: 2,
+      format: "AMRAP",
+      minutes: 12,
+      prescriptions: [
+        prescription({
+          exerciseId: PRESS,
+          reps: 3,
+          repsMax: 4,
+          side: "EACH",
+          bellKg: 12,
+        }),
+        prescription({ exerciseId: SWING, reps: 10, bellKg: 16 }),
+      ],
+    }),
+  ],
+};
+
 const PROGRAM = {
   id: "p1",
   name: "Simple & Sinister",
@@ -144,6 +174,7 @@ const PROGRAM = {
           { exerciseId: SWING, reps: 8, side: "LEFT", bellKg: 16, restSeconds: 30 },
           { exerciseId: SWING, reps: 8, side: "RIGHT", bellKg: 16, restSeconds: 90 },
         ]),
+        AMRAP_SESSION,
       ],
     },
   ],
@@ -330,6 +361,7 @@ describe("LogSessionPage", () => {
           bellKg: null,
         },
       ],
+      scores: [],
     });
     expect(screen.getByRole("button", { name: "Correct Logged Session" })).toBeEnabled();
 
@@ -428,6 +460,7 @@ describe("LogSessionPage", () => {
           bellKg: 16,
         },
       ],
+      scores: [],
     });
   });
 
@@ -672,5 +705,101 @@ describe("LogSessionPage", () => {
     renderPage();
 
     expect(await screen.findByRole("alert")).toHaveTextContent("No Program with id p1");
+  });
+
+  it("runs the clock of an EMOM minute by minute", async () => {
+    serve({
+      "GET /api/programs/p1": [200, PROGRAM],
+      "GET /api/exercises": [200, EXERCISES],
+      "GET /api/sessions/s3/log": [404, { detail: "Session s3 has no Logged Session" }],
+    });
+    renderPage("/programs/p1/sessions/s3/log");
+    await screen.findByRole("heading", { name: "Week 1 · Session 4" });
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] });
+    const emom = screen.getByRole("rowgroup", {
+      name: /^Part 1 · 20 min EMOM/,
+    });
+
+    fireEvent.click(within(emom).getByRole("button", { name: "Start EMOM" }));
+    const clock = within(emom).getByRole("timer");
+    expect(clock).toHaveTextContent("Minute 1 of 20 · 1:00");
+    act(() => vi.advanceTimersByTime(75_000));
+    expect(clock).toHaveTextContent("Minute 2 of 20 · 0:45");
+    act(() => vi.advanceTimersByTime(20 * 60_000));
+    expect(clock).toHaveTextContent("EMOM is over");
+
+    fireEvent.click(within(emom).getByRole("button", { name: "Start EMOM" }));
+    fireEvent.click(within(emom).getByRole("button", { name: "Stop EMOM" }));
+    expect(within(emom).queryByRole("timer")).not.toBeInTheDocument();
+  });
+
+  it("counts an AMRAP down from its time cap and logs it as a Score", async () => {
+    const fetch = serve({
+      "GET /api/programs/p1": [200, PROGRAM],
+      "GET /api/exercises": [200, EXERCISES],
+      "GET /api/sessions/s5/log": [404, { detail: "Session s5 has no Logged Session" }],
+      "POST /api/sessions/s5/log": [201, {}],
+    });
+    renderPage("/programs/p1/sessions/s5/log");
+    await screen.findByRole("heading", { name: "Week 1 · Session 6" });
+    const amrap = screen.getByRole("rowgroup", {
+      name: "Part 2 · 12 min AMRAP",
+    });
+
+    expect(
+      within(amrap).getByText(/3-4\+3-4 Clean to waiter press · 12 kg; 10 Swing · 16 kg/),
+    ).toBeInTheDocument();
+    expect(within(amrap).queryByRole("row", { name: /^Set/ })).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole("row", { name: "Set 1" })).getByText("of 3-5"),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Set 1 Reps")).toHaveValue(3);
+
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] });
+    fireEvent.click(within(amrap).getByRole("button", { name: "Start AMRAP" }));
+    expect(within(amrap).getByRole("timer")).toHaveTextContent("12:00 left");
+    act(() => vi.advanceTimersByTime(90_000));
+    expect(within(amrap).getByRole("timer")).toHaveTextContent("10:30 left");
+    act(() => vi.advanceTimersByTime(11 * 60_000));
+    expect(within(amrap).getByRole("timer")).toHaveTextContent("AMRAP is over");
+    vi.useRealTimers();
+
+    expect(screen.getByRole("button", { name: "Log Session" })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Part 2 Rounds"), {
+      target: { value: "5" },
+    });
+    fireEvent.change(screen.getByLabelText("Part 2 extra Reps"), {
+      target: { value: "7" },
+    });
+    expect(screen.getByText("0 of 1 Sets done, 1 of 1 AMRAPs scored")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Log Session" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Logged Session saved.");
+    expect(sentBody(fetch, "POST")).toMatchObject({
+      sets: [],
+      scores: [{ part: 2, rounds: 5, extraReps: 7 }],
+    });
+  });
+
+  it("opens a logged AMRAP with its Score", async () => {
+    serve({
+      "GET /api/programs/p1": [200, PROGRAM],
+      "GET /api/exercises": [200, EXERCISES],
+      "GET /api/sessions/s5/log": [
+        200,
+        {
+          sessionId: "s5",
+          date: "2026-11-10",
+          sets: [],
+          scores: [{ part: 2, rounds: 6, extraReps: 0 }],
+        },
+      ],
+    });
+    renderPage("/programs/p1/sessions/s5/log");
+    await screen.findByRole("heading", { name: "Week 1 · Session 6" });
+
+    expect(screen.getByLabelText("Part 2 Rounds")).toHaveValue(6);
+    expect(screen.getByLabelText("Part 2 extra Reps")).toHaveValue(0);
+    expect(screen.getByRole("button", { name: "Correct Logged Session" })).toBeEnabled();
   });
 });

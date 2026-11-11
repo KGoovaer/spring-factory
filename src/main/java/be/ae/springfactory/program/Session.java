@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -31,6 +32,15 @@ public record Session(UUID id, String notes, List<Part> parts) {
   /** Planned Volume of this Session: the Volume of its Parts, summed. */
   public BigDecimal volume() {
     return parts.stream().map(Part::volume).reduce(BigDecimal.ZERO, BigDecimal::add);
+  }
+
+  /** Part {@code number} (from 1) when this Session has it and it is an AMRAP, else empty. */
+  public Optional<Part> amrap(int number) {
+    if (number < 1 || number > parts.size()) {
+      return Optional.empty();
+    }
+    Part part = parts.get(number - 1);
+    return part.format() == PartFormat.AMRAP ? Optional.of(part) : Optional.empty();
   }
 
   Session withPart(Part part) {

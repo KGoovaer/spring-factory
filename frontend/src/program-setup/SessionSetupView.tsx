@@ -137,6 +137,7 @@ const FORMATS: { value: PartFormat; label: string }[] = [
   { value: "SETS", label: "Sets" },
   { value: "ROUNDS", label: "Rounds" },
   { value: "EMOM", label: "EMOM" },
+  { value: "AMRAP", label: "AMRAP" },
   { value: "REST", label: "Rest" },
 ];
 
@@ -154,6 +155,8 @@ function AddPartForm({ sessionId, change }: { sessionId: string; change: Change 
         return { format, rounds: Number(rounds) };
       case "EMOM":
         return { format, minutes: Number(minutes), rotation: Number(rotation) };
+      case "AMRAP":
+        return { format, minutes: Number(minutes) };
       case "REST":
         return { format, restSeconds: Number(rest) };
     }
@@ -178,6 +181,9 @@ function AddPartForm({ sessionId, change }: { sessionId: string; change: Change 
           <NumberField label="Minutes" value={minutes} onChange={setMinutes} />
           <NumberField label="Rotation (minutes)" value={rotation} onChange={setRotation} />
         </>
+      )}
+      {format === "AMRAP" && (
+        <NumberField label="Time cap (minutes)" value={minutes} onChange={setMinutes} />
       )}
       {format === "REST" && <NumberField label="Rest (s)" value={rest} onChange={setRest} />}
       <button type="submit" disabled={saving}>
@@ -206,6 +212,7 @@ function AddPrescriptionForm({
   const [exerciseId, setExerciseId] = useState("");
   const [sets, setSets] = useState("1");
   const [reps, setReps] = useState("5");
+  const [repsMax, setRepsMax] = useState("");
   const [side, setSide] = useState<Side | "">("");
   const [time, setTime] = useState("");
   const [bell, setBell] = useState("");
@@ -213,6 +220,8 @@ function AddPrescriptionForm({
   const [minute, setMinute] = useState("1");
   const exercise = exercises.find((candidate) => candidate.id === exerciseId);
   const emom = part.format === "EMOM";
+  // Neither an EMOM nor an AMRAP Prescription has rest of its own.
+  const takesRest = part.format !== "EMOM" && part.format !== "AMRAP";
   const optional = (typed: string) => (typed === "" ? null : Number(typed));
 
   const { submit, saving, failure } = useSubmit(() =>
@@ -221,11 +230,12 @@ function AddPrescriptionForm({
         exerciseId,
         sets: emom ? 1 : Number(sets),
         reps: Number(reps),
+        repsMax: optional(repsMax),
         side: side === "" ? null : side,
         holdSeconds: exercise?.hold ? optional(time) : null,
         workSeconds: exercise?.timed ? optional(time) : null,
         bellKg: exercise && !exercise.bodyweight ? optional(bell) : null,
-        restSeconds: emom ? null : optional(rest),
+        restSeconds: takesRest ? optional(rest) : null,
         minute: emom ? Number(minute) : null,
       }),
     ),
@@ -258,6 +268,7 @@ function AddPrescriptionForm({
       )}
       {!emom && <NumberField label="Sets" value={sets} onChange={setSets} />}
       <NumberField label="Reps" value={reps} onChange={setReps} />
+      <NumberField label="Up to Reps" value={repsMax} onChange={setRepsMax} required={false} />
       <label>
         Side{" "}
         <select value={side} onChange={(e) => setSide(e.target.value as Side | "")}>
@@ -272,7 +283,9 @@ function AddPrescriptionForm({
       {exercise && !exercise.bodyweight && (
         <NumberField label="Bell (kg)" value={bell} onChange={setBell} step="any" />
       )}
-      {!emom && <NumberField label="Rest (s)" value={rest} onChange={setRest} required={false} />}
+      {takesRest && (
+        <NumberField label="Rest (s)" value={rest} onChange={setRest} required={false} />
+      )}
       <button type="submit" disabled={saving}>
         Add Prescription
       </button>

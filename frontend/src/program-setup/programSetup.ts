@@ -6,7 +6,7 @@ import type {
   ProgramResponse,
   Side,
 } from "../api/programs";
-import { sideLabel } from "../api/programs";
+import { prescriptionLine } from "../api/programs";
 
 /** A Program as the setup page shows it, with the Exercises a Lifter can prescribe. */
 export interface ProgramSetup {
@@ -28,6 +28,7 @@ export interface NewPrescription {
   exerciseId: string;
   sets: number;
   reps: number;
+  repsMax: number | null;
   side: Side | null;
   holdSeconds: number | null;
   workSeconds: number | null;
@@ -46,7 +47,9 @@ export interface NewExercise {
 }
 
 /** Loads the Program and the Exercise catalog. Throws ApiError when a call fails. */
-export async function loadProgramSetup(programId: string): Promise<ProgramSetup> {
+export async function loadProgramSetup(
+  programId: string
+): Promise<ProgramSetup> {
   const [program, exercises] = await Promise.all([
     getJson<ProgramResponse>(`/api/programs/${encodeURIComponent(programId)}`),
     getJson<ExerciseResponse[]>("/api/exercises"),
@@ -56,18 +59,28 @@ export async function loadProgramSetup(programId: string): Promise<ProgramSetup>
 
 /** Creates a Program with this name and returns its id. Throws ApiError, with the reason. */
 export async function createProgram(name: string): Promise<string> {
-  const program = await sendJson<{ id: string }>("POST", "/api/programs", { name });
+  const program = await sendJson<{ id: string }>("POST", "/api/programs", {
+    name,
+  });
   return program.id;
 }
 
 /** Appends the next Week to the Program. */
 export async function addWeek(programId: string): Promise<void> {
-  await sendJson("POST", `/api/programs/${encodeURIComponent(programId)}/weeks`, undefined);
+  await sendJson(
+    "POST",
+    `/api/programs/${encodeURIComponent(programId)}/weeks`,
+    undefined
+  );
 }
 
 /** Appends an empty Session to the Week. */
 export async function addSession(weekId: string): Promise<void> {
-  await sendJson("POST", `/api/weeks/${encodeURIComponent(weekId)}/sessions`, undefined);
+  await sendJson(
+    "POST",
+    `/api/weeks/${encodeURIComponent(weekId)}/sessions`,
+    undefined
+  );
 }
 
 /** Appends the Part to the Session. The server rejects fields its format does not take. */
@@ -79,17 +92,20 @@ export async function addPart(sessionId: string, part: NewPart): Promise<void> {
 export async function addPrescription(
   sessionId: string,
   partNumber: number,
-  prescription: NewPrescription,
+  prescription: NewPrescription
 ): Promise<void> {
   await sendJson(
     "POST",
     `${sessionPath(sessionId)}/parts/${partNumber}/prescriptions`,
-    prescription,
+    prescription
   );
 }
 
 /** Replaces the notes of the Session; blank notes clear them. */
-export async function changeNotes(sessionId: string, notes: string): Promise<void> {
+export async function changeNotes(
+  sessionId: string,
+  notes: string
+): Promise<void> {
   await sendJson("PUT", `${sessionPath(sessionId)}/notes`, { notes });
 }
 
@@ -100,34 +116,17 @@ export async function addExercise(exercise: NewExercise): Promise<void> {
 
 /**
  * A Prescription as one line, the way a Lifter writes it: "3 × 8+8 Clean to
- * waiter press · 16 kg", "5 × Swing · Right · 16 kg", "1 × 45 s Skipping".
+ * waiter press · 16 kg", "5 × Swing · Right · 16 kg", "1 × 45 s Skipping",
+ * "2 × 3-4 Swing · 24 kg".
  */
 export function describePrescription(
   prescription: PrescriptionResponse,
-  exercises: ExerciseResponse[],
+  exercises: ExerciseResponse[]
 ): string {
   const name =
-    exercises.find((exercise) => exercise.id === prescription.exerciseId)?.name ??
-    "Unknown Exercise";
-  const reps =
-    prescription.side === "EACH" ? sideLabel("EACH", prescription.reps) : String(prescription.reps);
-  const parts = [`${prescription.sets} × ${reps} ${name}`];
-  if (prescription.side === "LEFT" || prescription.side === "RIGHT") {
-    parts.push(sideLabel(prescription.side, prescription.reps));
-  }
-  if (prescription.holdSeconds !== null) {
-    parts.push(`hold ${prescription.holdSeconds} s`);
-  }
-  if (prescription.workSeconds !== null) {
-    parts.push(`${prescription.workSeconds} s`);
-  }
-  if (prescription.bellKg !== null) {
-    parts.push(`${prescription.bellKg} kg`);
-  }
-  if (prescription.restSeconds) {
-    parts.push(`rest ${prescription.restSeconds} s`);
-  }
-  return parts.join(" · ");
+    exercises.find((exercise) => exercise.id === prescription.exerciseId)
+      ?.name ?? "Unknown Exercise";
+  return `${prescription.sets} × ${prescriptionLine(prescription, name)}`;
 }
 
 function sessionPath(sessionId: string): string {

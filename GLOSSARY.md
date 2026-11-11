@@ -19,16 +19,24 @@ One planned training day: an ordered list of Parts, with the Lifter's notes for 
 _Avoid_: Workout, Day
 
 **Part**:
-One section of a Session, numbered from 1 and done in one format: straight Sets, Rounds, an EMOM, or only rest. Rest between Parts is its own Part.
+One section of a Session, numbered from 1 and done in one format: straight Sets, Rounds, an EMOM, an AMRAP, or only rest. Rest between Parts is its own Part.
 _Avoid_: Block (a Week is a block of a Program), Section, Circuit
 
 **Round**:
-One pass through all the Prescriptions of a Rounds Part, in order. "3 Rounds" does each Prescription three times.
+One pass through all the Prescriptions of a Rounds Part or an AMRAP, in order. "3 Rounds" does each Prescription three times.
 _Avoid_: Circuit, Lap
 
 **EMOM**:
 Every minute on the minute: a Part done for a number of minutes, cycling through a rotation of minutes. At the start of each minute the Lifter does the Prescriptions of that minute of the rotation, then rests for what is left of it. So an EMOM Prescription has no rest of its own. A minute of the rotation without Prescriptions is a rest minute.
 _Avoid_: Interval, Clock
+
+**AMRAP**:
+As many Rounds as possible: a Part done in Rounds through its Prescriptions until its time cap of minutes runs out. Its Prescriptions have no rest of their own; the Lifter rests at will. Its result is a Score.
+_Avoid_: Time cap Part, Metcon
+
+**Rep range**:
+Reps a Prescription asks for as a range, written 3-4: at least the low end, at most the high end.
+_Avoid_: Target Reps
 
 **Equipment**:
 What a Session needs, derived from its Exercises and never typed in: Kettlebell for a Kettlebell Exercise, the gear of a Bodyweight Exercise that names some (a jump rope), and Body weight for one that does not.
@@ -67,14 +75,18 @@ Which side a Prescription or Set works: Left, Right, or Each, written 8+8: the R
 _Avoid_: Arm, Hand, Per side
 
 **Prescription**:
-What the Program asks for one Exercise in a Part of a Session: Sets, Reps, optionally a Side, Hold time (only for a Hold Exercise), Work time (only for a Timed Exercise), Bell weight (none for a Bodyweight Exercise), optionally rest, and in an EMOM the minute it is done in.
+What the Program asks for one Exercise in a Part of a Session: Sets, Reps or a Rep range, optionally a Side, Hold time (only for a Hold Exercise), Work time (only for a Timed Exercise), Bell weight (none for a Bodyweight Exercise), optionally rest, and in an EMOM the minute it is done in.
 _Avoid_: Target, Plan
 
 ### Doing
 
 **Logged Session**:
-A Session as actually performed on a date, with what the Lifter really did. Planned and logged data are never mixed.
+A Session as actually performed on a date, with what the Lifter really did: the Sets done, and a Score for each AMRAP. Planned and logged data are never mixed.
 _Avoid_: Completed workout, History entry
+
+**Score**:
+What a Lifter did in an AMRAP: whole Rounds plus extra Reps into the next, written 5 + 7. The extra Reps are fewer than a Round has.
+_Avoid_: Result, AMRAP score (in code)
 
 **Set**:
 A group of consecutive Reps of one Exercise, followed by rest.
@@ -91,7 +103,7 @@ _Avoid_: Weight, Kettlebell (in code)
 ### Measuring
 
 **Volume**:
-Reps times Bell weight, summed over a scope (a Set, Part, Session, Week or Program). A Set on Each Side counts its Reps twice; a Prescription in a Rounds Part counts once per Round, in an EMOM once per minute it is done. A Set without a Bell adds 0.
+Reps times Bell weight, summed over a scope (a Set, Part, Session, Week or Program). A Set on Each Side counts its Reps twice; a Prescription in a Rounds Part counts once per Round, in an EMOM once per minute it is done, and in a planned AMRAP once. A Rep range counts its low end when planned. A Score counts its Rounds and then its extra Reps, each at the Bell of the Prescription it falls in. A Set without a Bell adds 0.
 _Avoid_: Tonnage, Load
 
 **Adherence**:
@@ -108,7 +120,7 @@ _Avoid_: User, Athlete, Trainee
 
 - A **Program** has many **Weeks**; a **Week** has many **Sessions**.
 - A **Session** has many **Parts**; a **Part** has many **Prescriptions**, each for one **Exercise**.
-- A **Logged Session** refers to the **Session** it performed and holds the **Sets** actually done.
+- A **Logged Session** refers to the **Session** it performed and holds the **Sets** actually done and a **Score** per **AMRAP** done.
 - **Volume**, **Adherence** and **Equipment** are always derived, never stored.
 
 ## Flagged ambiguities
@@ -116,5 +128,7 @@ _Avoid_: User, Athlete, Trainee
 - "Weight" means the **Bell** weight; body weight is not modelled, so a **Bodyweight Exercise** has no weight and adds no **Volume**.
 - A plank is a hold, not a repetition: it is measured in **Hold time**, and one **Rep** of a plank is one hold. Hold time adds no **Volume**.
 - A walking plank moves, so it is counted in **Reps**, not **Hold time**; skipping is counted in **Work time**, not Reps.
-- "8+8" is one **Set** on **Each** side: 16 **Reps** of **Volume**, not two Sets.
+- "8+8" is one **Set** on **Each** side: 8 Reps on the left and 8 on the right, 16 **Reps** of **Volume**, not two Sets.
+- "3-4x" is a **Rep range**, not 3 or 4 **Sets**.
+- A partly done **EMOM** is logged as the **Sets** of the minutes done; it has no **Score**.
 - "Right: 5x Swing" in an **EMOM** is a Prescription on the **Right** side; the next minute's "Left" is another Prescription.

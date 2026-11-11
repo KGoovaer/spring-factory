@@ -170,6 +170,50 @@ class PartsTest {
   }
 
   @Test
+  void anAmrapHasATimeCapAndItsPrescriptionsHaveNoRestOrMinute() {
+    UUID sessionId = newSessionId();
+    programs.addPart(sessionId, Part.amrap(12));
+
+    assertThatThrownBy(() -> new Part(PartFormat.AMRAP, null, null, null, null, List.of()))
+        .isInstanceOf(InvalidPartException.class)
+        .hasMessage("A AMRAP Part needs its minutes");
+    assertThatThrownBy(() -> new Part(PartFormat.AMRAP, null, 12, 4, null, List.of()))
+        .isInstanceOf(InvalidPartException.class)
+        .hasMessage("A AMRAP Part takes no rotation, was 4");
+    assertThatThrownBy(
+            () -> programs.addPrescription(sessionId, 1, new Prescription(SWING, 1, 5, BELL, 30)))
+        .isInstanceOf(InvalidPartException.class)
+        .hasMessageStartingWith("A Prescription in an AMRAP takes no rest");
+    assertThatThrownBy(() -> programs.addPrescription(sessionId, 1, inMinute(SWING, null, BELL, 1)))
+        .isInstanceOf(InvalidPartException.class)
+        .hasMessage("Only a Prescription in an EMOM has a minute");
+
+    programs.addPrescription(sessionId, 1, eachSide(WAITER_PRESS, BELL));
+    Part amrap = programs.session(sessionId).parts().getFirst();
+    assertThat(amrap.repsPerRound()).isEqualTo(16);
+    // 2 Rounds of 8+8 at 16 kg, then 9 Reps: 2 × 256 + 9 × 16
+    assertThat(amrap.volume(2, 9)).isEqualByComparingTo("656");
+    assertThatThrownBy(() -> Part.rounds(3).volume(1, 0))
+        .isInstanceOf(InvalidPartException.class)
+        .hasMessage("Only an AMRAP Part has a Score, not a ROUNDS Part");
+  }
+
+  @Test
+  void aRepRangeCountsItsLowEndInPlannedVolume() {
+    UUID sessionId = newSessionId();
+    Prescription threeToFour =
+        new Prescription(SWING, 2, 3, 4, null, null, null, BELL, null, null);
+
+    programs.addPrescription(sessionId, threeToFour);
+
+    assertThat(programs.session(sessionId).prescriptions()).containsExactly(threeToFour);
+    assertThat(programs.session(sessionId).volume()).isEqualByComparingTo("96");
+    assertThatThrownBy(() -> new Prescription(SWING, 1, 4, 4, null, null, null, BELL, null, null))
+        .isInstanceOf(InvalidPrescriptionException.class)
+        .hasMessage("A rep range must end above its 4 Reps, was 4-4");
+  }
+
+  @Test
   void notesAreStrippedAndBlankNotesClearThem() {
     UUID sessionId = newSessionId();
 
