@@ -106,6 +106,14 @@ body {
   color: #4b5563;
 }
 
+.log-session .logged-elsewhere {
+  border-left: 4px solid #b54708;
+  background: #fffaeb;
+  color: #1d2329;
+  padding: 0.25rem 1rem;
+  margin-bottom: 1rem;
+}
+
 .log-date {
   display: inline-flex;
   gap: 0.5rem;

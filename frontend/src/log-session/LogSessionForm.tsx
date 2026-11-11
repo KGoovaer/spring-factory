@@ -14,6 +14,8 @@ import {
   doneSets,
   filledScores,
   logSession,
+  SessionLoggedElsewhere,
+  type LoggedElsewhere,
   type ScoreEntry,
   type SessionToLog,
   type SetEntry,
@@ -49,6 +51,22 @@ type Saving =
 const COLUMNS = 8;
 
 /**
+ * What saving does: log the Session, correct its Logged Session, or overwrite
+ * one logged elsewhere while the form was open (`logged` is what that holds, or
+ * null when it could not be loaded).
+ */
+type SaveMode =
+  | { kind: "log" }
+  | { kind: "correct" }
+  | { kind: "overwrite"; logged: LoggedElsewhere | null };
+
+const SAVE_LABEL: Record<SaveMode["kind"], string> = {
+  log: "Log Session",
+  correct: "Correct Logged Session",
+  overwrite: "Overwrite Logged Session",
+};
+
+/**
  * The Parts of one Session, each a list of Set rows the Lifter marks done while
  * training, or fills in afterwards, with rest between them. Marking a Set done
  * starts its prescribed rest; a rest row starts its rest on demand. Only the
@@ -56,6 +74,10 @@ const COLUMNS = 8;
  * Session opens with its Sets done in the rows they were planned in, so saving
  * again corrects it. An EMOM or AMRAP has a clock to start; an AMRAP is logged
  * as its Score, the Rounds and extra Reps done, rather than as Sets.
+ *
+ * When the Session was logged elsewhere while the form was open, the form keeps
+ * what the Lifter filled in and switches to correction mode, saying that saving
+ * now overwrites that Logged Session.
  *
  * The Session timer times the whole Session, and its Session time is logged
  * with it. The step the Lifter is to do now is highlighted, the Sets of an
@@ -115,7 +137,9 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
         : [],
     ),
   );
-  const [logged, setLogged] = useState(session.loggedDate !== null);
+  const [mode, setMode] = useState<SaveMode>({
+    kind: session.loggedDate !== null ? "correct" : "log",
+  });
   const [rest, setRest] = useState<{
     endsAt: number;
     seconds: number;
@@ -210,11 +234,16 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
     event.preventDefault();
     setSaving({ status: "saving" });
     try {
-      const send = logged ? correctLoggedSession : logSession;
+      const send = mode.kind === "log" ? logSession : correctLoggedSession;
       await send(session.sessionId, date, done, scored, sessionTimeNow(timer));
-      setLogged(true);
+      setMode({ kind: "correct" });
       setSaving({ status: "saved" });
     } catch (error) {
+      if (error instanceof SessionLoggedElsewhere) {
+        setMode({ kind: "overwrite", logged: error.logged });
+        setSaving({ status: "idle" });
+        return;
+      }
       setSaving({ status: "failed", message: errorMessage(error) });
     }
   };
@@ -249,9 +278,21 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
             {session.notes}
           </section>
         )}
-        <p className="log-state">
-          {logged ? "Logged: saving corrects this Logged Session." : "Not logged yet."}
-        </p>
+        {mode.kind === "overwrite" ? (
+          <div role="alert" className="log-state logged-elsewhere">
+            <p>
+              <strong>This Session was logged elsewhere</strong>
+              {mode.logged && ` on ${mode.logged.date} (${contents(mode.logged)})`}.
+            </p>
+            <p>Your Sets below are kept. Saving now overwrites that Logged Session.</p>
+          </div>
+        ) : (
+          <p className="log-state">
+            {mode.kind === "correct"
+              ? "Logged: saving corrects this Logged Session."
+              : "Not logged yet."}
+          </p>
+        )}
         <label className="log-date">
           Date{" "}
           <input
@@ -391,7 +432,7 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
             className="primary"
             disabled={(done.length === 0 && scored.length === 0) || saving.status === "saving"}
           >
-            {logged ? "Correct Logged Session" : "Log Session"}
+            {SAVE_LABEL[mode.kind]}
           </button>
           <span>
             {done.length} of {rows.length} Sets done
@@ -407,6 +448,15 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
       </form>
     </BeepContext.Provider>
   );
+}
+
+/** What a Logged Session holds, as "3 Sets, 1 Score". */
+function contents(logged: LoggedElsewhere): string {
+  const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
+  return [
+    count(logged.sets, "Set"),
+    ...(logged.scores > 0 ? [count(logged.scores, "Score")] : []),
+  ].join(", ");
 }
 
 /** One Round of an AMRAP, and its Score: whole Rounds and extra Reps into the next. */

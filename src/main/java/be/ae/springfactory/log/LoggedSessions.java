@@ -69,7 +69,7 @@ public class LoggedSessions {
       Integer sessionSeconds) {
     LoggedSession logged = validated(sessionId, date, sets, scores, sessionSeconds);
     if (logs.putIfAbsent(sessionId, logged) != null) {
-      throw new SessionAlreadyLoggedException(sessionId);
+      throw new SessionAlreadyLoggedException();
     }
     return logged;
   }

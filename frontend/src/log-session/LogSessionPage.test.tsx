@@ -734,6 +734,75 @@ describe("LogSessionPage", () => {
     expect(screen.getByRole("button", { name: "Log Session" })).toBeEnabled();
   });
 
+  it("keeps the Lifter's Sets and switches to correction mode when the Session was logged elsewhere", async () => {
+    const routes = notLogged({
+      "POST /api/sessions/s1/log": [
+        409,
+        { status: 409, detail: "This Session has a Logged Session already" },
+      ],
+      "PUT /api/sessions/s1/log": [200, LOGGED],
+    });
+    const fetch = serve(routes);
+    renderPage();
+    await screen.findByRole("heading", { name: "Week 1 · Session 2" });
+    expect(screen.getByText("Not logged yet.")).toBeInTheDocument();
+
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] });
+    const bar = screen.getByRole("region", { name: "Session" });
+    fireEvent.click(within(bar).getByRole("button", { name: "Start session" }));
+    act(() => vi.advanceTimersByTime(12_000));
+    fireEvent.click(within(bar).getByRole("button", { name: "Stop session" }));
+    vi.useRealTimers();
+    fireEvent.click(screen.getByRole("button", { name: "Set 1 done" }));
+    fireEvent.change(screen.getByLabelText("Set 1 Bell"), { target: { value: "28" } });
+    // Another tab logs the Session before this form saves.
+    routes["GET /api/sessions/s1/log"] = [200, LOGGED];
+    fireEvent.click(screen.getByRole("button", { name: "Log Session" }));
+
+    const notice = await screen.findByRole("alert");
+    expect(notice).toHaveTextContent("This Session was logged elsewhere on 2026-11-08 (1 Set).");
+    expect(notice).toHaveTextContent(
+      "Your Sets below are kept. Saving now overwrites that Logged Session.",
+    );
+    expect(notice).not.toHaveTextContent("s1");
+    expect(screen.getByLabelText("Set 1 Bell")).toHaveValue(28);
+    expect(screen.getByRole("button", { name: "Set 1 done" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(fetch.mock.calls.filter(([, init]) => init?.method === "PUT")).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "Overwrite Logged Session" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Logged Session saved.");
+    expect(sentBody(fetch, "PUT")).toEqual(sentBody(fetch, "POST"));
+    expect(sentBody(fetch, "PUT").sessionSeconds).toBe(12);
+    expect(sentBody(fetch, "PUT").sets[0].bellKg).toBe(28);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Correct Logged Session" })).toBeEnabled();
+  });
+
+  it("still switches to correction mode when the Logged Session made elsewhere cannot be loaded", async () => {
+    const routes = notLogged({
+      "POST /api/sessions/s1/log": [409, { status: 409, detail: "Logged already" }],
+      "PUT /api/sessions/s1/log": [200, LOGGED],
+    });
+    const fetch = serve(routes);
+    renderPage();
+    await screen.findByRole("heading", { name: "Week 1 · Session 2" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Set 1 done" }));
+    routes["GET /api/sessions/s1/log"] = [500, { detail: "Server error" }];
+    fireEvent.click(screen.getByRole("button", { name: "Log Session" }));
+
+    const notice = await screen.findByRole("alert");
+    expect(notice).toHaveTextContent("This Session was logged elsewhere.");
+    expect(notice).toHaveTextContent("Saving now overwrites that Logged Session.");
+    fireEvent.click(screen.getByRole("button", { name: "Overwrite Logged Session" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Logged Session saved.");
+    expect(sentBody(fetch, "PUT").sets).toHaveLength(1);
+  });
+
   it("shows an error when the Program has no such Session", async () => {
     serve({
       "GET /api/programs/p1": [200, PROGRAM],

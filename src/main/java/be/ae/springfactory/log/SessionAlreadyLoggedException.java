@@ -1,13 +1,12 @@
 package be.ae.springfactory.log;
 
-import java.util.UUID;
-
 /**
  * The Session has a Logged Session already; a Session is logged at most once, and a Lifter corrects
- * that Logged Session instead of logging it again.
+ * that Logged Session instead of logging it again. The message is shown to the Lifter, so it names
+ * no id.
  */
 public class SessionAlreadyLoggedException extends RuntimeException {
-  SessionAlreadyLoggedException(UUID sessionId) {
-    super("Session " + sessionId + " has a Logged Session already");
+  SessionAlreadyLoggedException() {
+    super("This Session has a Logged Session already");
   }
 }

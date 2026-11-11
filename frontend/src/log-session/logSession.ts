@@ -343,12 +343,35 @@ export function bellWeightProblem(bellKg: string): string {
     : "";
 }
 
+/** What a Logged Session saved elsewhere holds, as the Lifter is told about it. */
+export interface LoggedElsewhere {
+  date: string;
+  sets: number;
+  scores: number;
+}
+
+/**
+ * The Session was logged in another tab or client after this form opened, so
+ * it cannot be logged again, only corrected. `logged` is what that Logged
+ * Session holds, or null when it could not be loaded.
+ */
+export class SessionLoggedElsewhere extends Error {
+  readonly logged: LoggedElsewhere | null;
+
+  constructor(logged: LoggedElsewhere | null) {
+    super("This Session was logged elsewhere");
+    this.name = "SessionLoggedElsewhere";
+    this.logged = logged;
+  }
+}
+
 /**
  * Logs the Session as performed on `date` with the Sets the Lifter did, the
  * Score of each AMRAP done and the Session time the Lifter timed, in whole
- * seconds, or null when they did not time it. The
- * server checks every rule and answers with ApiError (and its reason) when one
- * is broken, or when the Session has a Logged Session already.
+ * seconds, or null when they did not time it. The server checks every rule and
+ * answers with ApiError (and its reason) when one is broken. When the Session
+ * has a Logged Session already, throws SessionLoggedElsewhere with what that
+ * Logged Session holds; nothing is overwritten.
  */
 export async function logSession(
   sessionId: string,
@@ -357,12 +380,31 @@ export async function logSession(
   scores: ScoreInput[] = [],
   sessionSeconds: number | null = null
 ): Promise<void> {
-  await sendJson("POST", logPath(sessionId), {
-    date,
-    sets,
-    scores,
-    sessionSeconds,
-  });
+  try {
+    await sendJson("POST", logPath(sessionId), { date, sets, scores, sessionSeconds });
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 409) {
+      throw new SessionLoggedElsewhere(await loggedElsewhere(sessionId));
+    }
+    throw error;
+  }
+}
+
+async function loggedElsewhere(
+  sessionId: string
+): Promise<LoggedElsewhere | null> {
+  try {
+    const logged = await findLoggedSession(sessionId);
+    return (
+      logged && {
+        date: logged.date,
+        sets: logged.sets.length,
+        scores: logged.scores?.length ?? 0,
+      }
+    );
+  } catch {
+    return null;
+  }
 }
 
 /**

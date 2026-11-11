@@ -91,7 +91,8 @@ class LoggedSessionEndpointTest {
 
     mvc.perform(log(sessionId, oneSet("\"bellKg\":32")))
         .andExpect(status().isConflict())
-        .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON));
+        .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+        .andExpect(jsonPath("$.detail").value("This Session has a Logged Session already"));
     mvc.perform(get("/api/sessions/{id}/log", sessionId))
         .andExpect(jsonPath("$.sets[0].bellKg").value(24));
   }
