@@ -25,13 +25,15 @@ Exercises move first, on their own.
 - **Seeds are plain inserts.** `V1` and `V2` run together on an empty table,
   so no Lifter's Exercise can share a seed's name. A later seed migration that
   meets a name a Lifter took decides then what to do with it; none is planned.
-- **A Lifter changes or removes an Exercise.** `PUT /api/exercises/{id}` takes
-  the same body as `POST` and keeps the id and place in the catalog; a taken
-  name is a 409. `DELETE /api/exercises/{id}` removes it from the list and frees
-  its name, but keeps the row: `get` still finds it, so the Prescriptions and
-  Logged Sets that refer to it keep their Equipment and Volume. A change applies
-  to what is planned or logged after it; what was planned or logged before keeps
-  its Bell weight, Hold time and Work time.
+- **A Lifter renames or removes an Exercise.** `PUT /api/exercises/{id}` takes
+  only a name and keeps the id, classification and place in the catalog; a
+  taken name is a 409, and a body with a classification is a 400. The
+  classification never changes, because Prescriptions and Logged Sets look
+  their Exercise up: a changed one would change the Equipment of Sessions
+  already planned and turn their Bell weights, Hold times and Work times
+  invalid. `DELETE /api/exercises/{id}` removes it from the list and frees its
+  name, but keeps the row: `get` still finds it, so the Prescriptions and
+  Logged Sets that refer to it keep their Equipment and Volume.
 
 ## Left out
 

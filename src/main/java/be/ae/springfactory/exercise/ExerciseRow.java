@@ -41,7 +41,11 @@ class ExerciseRow {
   ExerciseRow(Exercise exercise, int position) {
     this.id = exercise.id();
     this.position = position;
-    set(exercise);
+    this.bodyweight = exercise.bodyweight();
+    this.hold = exercise.hold();
+    this.timed = exercise.timed();
+    this.gear = exercise.gear();
+    rename(exercise.name());
   }
 
   /** The lower-cased name that listed Exercises may not share. */
@@ -61,14 +65,10 @@ class ExerciseRow {
     return removed;
   }
 
-  /** Takes the name and classification of this Exercise, which has the row's id. */
-  void set(Exercise exercise) {
-    this.name = exercise.name();
-    this.nameKey = nameKey(exercise.name());
-    this.bodyweight = exercise.bodyweight();
-    this.hold = exercise.hold();
-    this.timed = exercise.timed();
-    this.gear = exercise.gear();
+  /** Takes this name, which an {@link Exercise} has checked. */
+  void rename(String name) {
+    this.name = name;
+    this.nameKey = nameKey(name);
   }
 
   void remove() {

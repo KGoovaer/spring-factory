@@ -12,7 +12,8 @@ import org.springframework.stereotype.Component;
  * seed migration (see docs/adr/0001-exercise-ids-are-uuids.md); added Exercises get random ones.
  * Names of listed Exercises are unique, ignoring case.
  *
- * <p>A Lifter changes an Exercise or removes it. A removed Exercise is no longer listed and frees
+ * <p>A Lifter renames an Exercise or removes it; its classification never changes, so the
+ * Equipment and Volume of what was planned or logged with it stay as they were. A removed Exercise is no longer listed and frees
  * its name, but {@link #get} still finds it, so Prescriptions and Logged Sets that refer to it
  * keep resolving. Every row is rebuilt through {@link Exercise}, so its rules hold for what is
  * read back as much as for what is written. Safe for concurrent use: the app is the only one
@@ -57,20 +58,21 @@ public class ExerciseCatalog {
   }
 
   /**
-   * Changes the name and classification of the listed Exercise with this id, keeping its id and
-   * place in the catalog, and returns it. Throws {@link ExerciseNotFoundException} when no listed
-   * Exercise has this id, {@link InvalidExerciseException} when the change breaks a rule of {@link
-   * Exercise}, and {@link ExerciseNameTakenException} when another listed Exercise has this name,
-   * ignoring case.
+   * Renames the listed Exercise with this id, keeping its id, classification and place in the
+   * catalog, and returns it. Throws {@link ExerciseNotFoundException} when no listed Exercise has
+   * this id, {@link InvalidExerciseException} when the name is blank or too long, and {@link
+   * ExerciseNameTakenException} when another listed Exercise has this name, ignoring case.
    */
-  public synchronized Exercise change(
-      UUID id, String name, boolean bodyweight, boolean hold, boolean timed, String gear) {
+  public synchronized Exercise rename(UUID id, String name) {
     ExerciseRow row = listed(id);
-    Exercise exercise = new Exercise(id, name, bodyweight, hold, timed, gear);
-    refuseTakenName(exercise);
-    row.set(exercise);
+    Exercise current = row.exercise();
+    Exercise renamed =
+        new Exercise(
+            id, name, current.bodyweight(), current.hold(), current.timed(), current.gear());
+    refuseTakenName(renamed);
+    row.rename(renamed.name());
     rows.save(row);
-    return exercise;
+    return renamed;
   }
 
   /**

@@ -32,15 +32,16 @@ class ExerciseController {
   }
 
   @PostMapping
-  ResponseEntity<ExerciseResponse> add(@Valid @RequestBody ExerciseRequest request) {
+  ResponseEntity<ExerciseResponse> add(@Valid @RequestBody AddExerciseRequest request) {
     Exercise exercise = request.addTo(catalog);
     return ResponseEntity.created(URI.create("/api/exercises/" + exercise.id()))
         .body(ExerciseResponse.of(exercise));
   }
 
   @PutMapping("/{id}")
-  ExerciseResponse change(@PathVariable UUID id, @Valid @RequestBody ExerciseRequest request) {
-    return ExerciseResponse.of(request.changeIn(catalog, id));
+  ExerciseResponse rename(
+      @PathVariable UUID id, @Valid @RequestBody RenameExerciseRequest request) {
+    return ExerciseResponse.of(catalog.rename(id, request.name()));
   }
 
   @DeleteMapping("/{id}")

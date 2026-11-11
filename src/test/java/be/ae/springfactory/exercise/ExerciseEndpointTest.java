@@ -99,40 +99,58 @@ class ExerciseEndpointTest {
   }
 
   @Test
-  void aLifterChangesAnExercise() throws Exception {
-    String id = added("Lunge " + UUID.randomUUID());
-    String name = "Walking lunge " + UUID.randomUUID();
+  void aLifterRenamesAnExerciseWhichKeepsItsClassification() throws Exception {
+    String id = added("Plank hold " + UUID.randomUUID(), true, true);
+    String name = "Side plank " + UUID.randomUUID();
 
     mvc.perform(
             put("/api/exercises/" + id)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"name\":\"%s\",\"bodyweight\":true}".formatted(name)))
+                .content("{\"name\":\"%s\"}".formatted(name)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(id))
         .andExpect(jsonPath("$.name").value(name))
-        .andExpect(jsonPath("$.equipment").value("Body weight"));
+        .andExpect(jsonPath("$.equipment").value("Body weight"))
+        .andExpect(jsonPath("$.hold").value(true));
 
     mvc.perform(get("/api/exercises"))
         .andExpect(jsonPath("$[?(@.id == '%s')].name".formatted(id)).value(name));
   }
 
   @Test
-  void aChangeToATakenNameIsAConflictABadOneABadRequestAndAnUnknownIdNotFound()
-      throws Exception {
-    String id = added("Halo " + UUID.randomUUID());
+  void aRenameThatTriesToChangeTheClassificationIsABadRequest() throws Exception {
+    String id = added("Halo " + UUID.randomUUID(), false, false);
+
+    mvc.perform(
+            put("/api/exercises/" + id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Halo\",\"bodyweight\":true}"))
+        .andExpect(status().isBadRequest());
+    mvc.perform(get("/api/exercises"))
+        .andExpect(jsonPath("$[?(@.id == '%s')].equipment".formatted(id)).value("Kettlebell"));
+  }
+
+  @Test
+  void aRenameToATakenNameIsAConflict() throws Exception {
+    String id = added("Halo " + UUID.randomUUID(), false, false);
 
     mvc.perform(
             put("/api/exercises/" + id)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"name\":\"swing\"}"))
         .andExpect(status().isConflict());
-    mvc.perform(
-            put("/api/exercises/" + id)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"name\":\"Halo\",\"gear\":\"Sled\"}"))
-        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void aRenameWithoutANameIsABadRequest() throws Exception {
+    String id = added("Halo " + UUID.randomUUID(), false, false);
+
     mvc.perform(put("/api/exercises/" + id).contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void aRenameOfAnUnknownExerciseIsNotFound() throws Exception {
     mvc.perform(
             put("/api/exercises/" + UUID.randomUUID())
                 .contentType(MediaType.APPLICATION_JSON)
@@ -142,7 +160,7 @@ class ExerciseEndpointTest {
 
   @Test
   void aLifterRemovesAnExerciseThatIsThenNoLongerListed() throws Exception {
-    String id = added("Windmill " + UUID.randomUUID());
+    String id = added("Windmill " + UUID.randomUUID(), false, false);
 
     mvc.perform(delete("/api/exercises/" + id)).andExpect(status().isNoContent());
 
@@ -161,12 +179,14 @@ class ExerciseEndpointTest {
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
   }
 
-  private String added(String name) throws Exception {
+  private String added(String name, boolean bodyweight, boolean hold) throws Exception {
     String body =
         mvc.perform(
                 post("/api/exercises")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"name\":\"%s\"}".formatted(name)))
+                    .content(
+                        "{\"name\":\"%s\",\"bodyweight\":%s,\"hold\":%s}"
+                            .formatted(name, bodyweight, hold)))
             .andExpect(status().isCreated())
             .andReturn()
             .getResponse()

@@ -166,36 +166,33 @@ class ExerciseCatalogTest {
     assertThatThrownBy(() -> catalog.add("Drag", true, false, false, tooLong))
         .isInstanceOf(InvalidExerciseException.class)
         .hasMessage("Drag names gear of at most 200 characters");
-    assertThatThrownBy(() -> catalog.change(swing, tooLong, false, false, false, null))
+    assertThatThrownBy(() -> catalog.rename(swing, tooLong))
         .isInstanceOf(InvalidExerciseException.class);
     assertThat(catalog.add("x".repeat(200), true, false, false, "y".repeat(200)).name())
         .hasSize(200);
   }
 
   @Test
-  void aLifterChangesAnExerciseKeepingItsIdAndPlace() {
-    UUID sitUp = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c08");
+  void aLifterRenamesAnExerciseKeepingItsIdClassificationAndPlace() {
+    UUID plank = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c07");
 
-    Exercise changed = catalog.change(sitUp, " Hollow hold ", true, true, false, null);
+    Exercise renamed = catalog.rename(plank, " Front plank ");
 
-    assertThat(changed).isEqualTo(new Exercise(sitUp, "Hollow hold", true, true));
-    assertThat(catalog.get(sitUp)).isEqualTo(changed);
-    assertThat(catalog.all()).hasSize(12).element(9).isEqualTo(changed);
+    assertThat(renamed).isEqualTo(new Exercise(plank, "Front plank", true, true));
+    assertThat(catalog.get(plank)).isEqualTo(renamed);
+    assertThat(catalog.all()).hasSize(12).element(8).isEqualTo(renamed);
   }
 
   @Test
-  void aChangeKeepsTheExerciseRulesAndNamesUniqueIgnoringCase() {
+  void aRenameKeepsNamesUniqueIgnoringCase() {
     UUID swing = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c01");
 
-    assertThatThrownBy(() -> catalog.change(swing, "SNATCH", false, false, false, null))
+    assertThatThrownBy(() -> catalog.rename(swing, "SNATCH"))
         .isInstanceOf(ExerciseNameTakenException.class);
-    assertThatThrownBy(() -> catalog.change(swing, "Swing", false, false, false, "Sled"))
+    assertThatThrownBy(() -> catalog.rename(swing, " "))
         .isInstanceOf(InvalidExerciseException.class);
-    assertThatThrownBy(() -> catalog.change(swing, "Swing", true, true, true, null))
-        .isInstanceOf(InvalidExerciseException.class);
-    assertThat(catalog.change(swing, "swing", false, false, false, null).name())
-        .isEqualTo("swing");
-    assertThatThrownBy(() -> catalog.change(UUID.randomUUID(), "Lunge", false, false, false, null))
+    assertThat(catalog.rename(swing, "swing").name()).isEqualTo("swing");
+    assertThatThrownBy(() -> catalog.rename(UUID.randomUUID(), "Lunge"))
         .isInstanceOf(ExerciseNotFoundException.class);
   }
 
@@ -213,12 +210,12 @@ class ExerciseCatalogTest {
   }
 
   @Test
-  void aRemovedExerciseCannotBeChangedOrRemovedAgain() {
+  void aRemovedExerciseCannotBeRenamedOrRemovedAgain() {
     UUID snatch = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c05");
     catalog.remove(snatch);
 
     assertThatThrownBy(() -> catalog.remove(snatch)).isInstanceOf(ExerciseNotFoundException.class);
-    assertThatThrownBy(() -> catalog.change(snatch, "Snatch", false, false, false, null))
+    assertThatThrownBy(() -> catalog.rename(snatch, "Snatch"))
         .isInstanceOf(ExerciseNotFoundException.class);
     assertThatThrownBy(() -> catalog.remove(UUID.randomUUID()))
         .isInstanceOf(ExerciseNotFoundException.class);

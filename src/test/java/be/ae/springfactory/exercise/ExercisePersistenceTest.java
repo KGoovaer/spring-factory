@@ -18,14 +18,14 @@ class ExercisePersistenceTest {
   @TempDir Path directory;
 
   @Test
-  void addedChangedAndRemovedExercisesOutliveARestart() {
+  void addedRenamedAndRemovedExercisesOutliveARestart() {
     String url = "jdbc:h2:file:" + directory.resolve("kettlebell");
     Exercise boxJump;
     List<Exercise> before;
     try (ConfigurableApplicationContext app = ExerciseCatalogs.start(url)) {
       ExerciseCatalog catalog = app.getBean(ExerciseCatalog.class);
       boxJump = catalog.add("Box jump", true, false, false, "Box");
-      catalog.change(SWING, "Two-hand swing", false, false, false, null);
+      catalog.rename(SWING, "Two-hand swing");
       catalog.remove(SNATCH);
       before = catalog.all();
     }
