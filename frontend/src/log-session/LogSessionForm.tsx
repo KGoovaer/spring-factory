@@ -39,6 +39,22 @@ type Saving =
 const COLUMNS = 8;
 
 /**
+ * What saving does: log the Session, correct its Logged Session, or overwrite
+ * one logged elsewhere while the form was open (`logged` is what that holds, or
+ * null when it could not be loaded).
+ */
+type SaveMode =
+  | { kind: "log" }
+  | { kind: "correct" }
+  | { kind: "overwrite"; logged: LoggedElsewhere | null };
+
+const SAVE_LABEL: Record<SaveMode["kind"], string> = {
+  log: "Log Session",
+  correct: "Correct Logged Session",
+  overwrite: "Overwrite Logged Session",
+};
+
+/**
  * The Parts of one Session, each a list of Set rows the Lifter marks done while
  * training, or fills in afterwards, with rest between them. Marking a Set done
  * starts its prescribed rest; a rest row starts its rest on demand. Only the
@@ -101,9 +117,9 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
         : [],
     ),
   );
-  const [logged, setLogged] = useState(session.loggedDate !== null);
-  // Set when a log was refused because the Session was logged elsewhere; the next save overwrites it.
-  const [elsewhere, setElsewhere] = useState<{ logged: LoggedElsewhere | null } | null>(null);
+  const [mode, setMode] = useState<SaveMode>({
+    kind: session.loggedDate !== null ? "correct" : "log",
+  });
   const [rest, setRest] = useState<{
     endsAt: number;
     seconds: number;
@@ -147,15 +163,13 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
     event.preventDefault();
     setSaving({ status: "saving" });
     try {
-      const send = logged ? correctLoggedSession : logSession;
+      const send = mode.kind === "log" ? logSession : correctLoggedSession;
       await send(session.sessionId, date, done, scored);
-      setLogged(true);
-      setElsewhere(null);
+      setMode({ kind: "correct" });
       setSaving({ status: "saved" });
     } catch (error) {
       if (error instanceof SessionLoggedElsewhere) {
-        setLogged(true);
-        setElsewhere({ logged: error.logged });
+        setMode({ kind: "overwrite", logged: error.logged });
         setSaving({ status: "idle" });
         return;
       }
@@ -183,17 +197,19 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
           {session.notes}
         </section>
       )}
-      {elsewhere ? (
+      {mode.kind === "overwrite" ? (
         <div role="alert" className="log-state logged-elsewhere">
           <p>
             <strong>This Session was logged elsewhere</strong>
-            {elsewhere.logged && ` on ${elsewhere.logged.date} (${contents(elsewhere.logged)})`}.
+            {mode.logged && ` on ${mode.logged.date} (${contents(mode.logged)})`}.
           </p>
           <p>Your Sets below are kept. Saving now overwrites that Logged Session.</p>
         </div>
       ) : (
         <p className="log-state">
-          {logged ? "Logged: saving corrects this Logged Session." : "Not logged yet."}
+          {mode.kind === "correct"
+            ? "Logged: saving corrects this Logged Session."
+            : "Not logged yet."}
         </p>
       )}
       <label className="log-date">
@@ -302,7 +318,7 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
           className="primary"
           disabled={(done.length === 0 && scored.length === 0) || saving.status === "saving"}
         >
-          {elsewhere ? "Overwrite Logged Session" : logged ? "Correct Logged Session" : "Log Session"}
+          {SAVE_LABEL[mode.kind]}
         </button>
         <span>
           {done.length} of {rows.length} Sets done
