@@ -160,6 +160,16 @@ class ExerciseEndpointTest {
   }
 
   @Test
+  void aRenameOrRemovalOfAMalformedIdIsABadRequest() throws Exception {
+    mvc.perform(
+            put("/api/exercises/not-an-id")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Halo\"}"))
+        .andExpect(status().isBadRequest());
+    mvc.perform(delete("/api/exercises/not-an-id")).andExpect(status().isBadRequest());
+  }
+
+  @Test
   void aLifterRemovesAnExerciseThatIsThenNoLongerListed() throws Exception {
     String id = added("Windmill " + UUID.randomUUID(), false, false);
 
