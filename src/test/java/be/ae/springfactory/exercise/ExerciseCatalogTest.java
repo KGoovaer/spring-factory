@@ -21,17 +21,21 @@ class ExerciseCatalogTest {
             "Clean and press",
             "Turkish get-up",
             "Snatch",
+            "Clean to waiter press",
+            "Split stance row",
             "Push-up",
             "Plank",
-            "Sit-up");
+            "Sit-up",
+            "Walking plank",
+            "Skipping");
   }
 
   @Test
-  void onlyPushUpsPlanksAndSitUpsAreBodyweight() {
+  void onlyPushUpsPlanksSitUpsWalkingPlanksAndSkippingAreBodyweight() {
     assertThat(catalog.all())
         .filteredOn(Exercise::bodyweight)
         .extracting(Exercise::name)
-        .containsExactly("Push-up", "Plank", "Sit-up");
+        .containsExactly("Push-up", "Plank", "Sit-up", "Walking plank", "Skipping");
     assertThat(catalog.get(UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c06")).name())
         .isEqualTo("Push-up");
   }
@@ -41,10 +45,10 @@ class ExerciseCatalogTest {
     Exercise swing = catalog.get(UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c01"));
     Exercise pushUp = catalog.get(UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c06"));
 
-    assertThat(swing.mismatch(BigDecimal.TEN, null)).isEmpty();
-    assertThat(swing.mismatch(null, null)).contains("Swing needs a Bell weight");
-    assertThat(pushUp.mismatch(null, null)).isEmpty();
-    assertThat(pushUp.mismatch(BigDecimal.TEN, null))
+    assertThat(swing.mismatch(BigDecimal.TEN, null, null)).isEmpty();
+    assertThat(swing.mismatch(null, null, null)).contains("Swing needs a Bell weight");
+    assertThat(pushUp.mismatch(null, null, null)).isEmpty();
+    assertThat(pushUp.mismatch(BigDecimal.TEN, null, null))
         .contains("Push-up is a bodyweight Exercise and takes no Bell, was 10 kg");
   }
 
@@ -55,9 +59,9 @@ class ExerciseCatalogTest {
 
     assertThat(catalog.all()).filteredOn(Exercise::hold).containsExactly(plank);
     assertThat(plank.bodyweight()).isTrue();
-    assertThat(plank.mismatch(null, 60)).isEmpty();
-    assertThat(plank.mismatch(null, null)).contains("Plank is a hold and needs a hold time");
-    assertThat(pushUp.mismatch(null, 60))
+    assertThat(plank.mismatch(null, 60, null)).isEmpty();
+    assertThat(plank.mismatch(null, null, null)).contains("Plank is a hold and needs a hold time");
+    assertThat(pushUp.mismatch(null, 60, null))
         .contains("Push-up is not a hold and takes no hold time, was 60 s");
   }
 
@@ -78,7 +82,7 @@ class ExerciseCatalogTest {
     Exercise press = new Exercise(UUID.randomUUID(), "Press", false, false);
     assertThatThrownBy(() -> catalog.all().add(press))
         .isInstanceOf(UnsupportedOperationException.class);
-    assertThat(catalog.all()).hasSize(8);
+    assertThat(catalog.all()).hasSize(12);
   }
 
   @Test
@@ -92,5 +96,63 @@ class ExerciseCatalogTest {
   void anUnknownExerciseIsNotFound() {
     assertThatThrownBy(() -> catalog.get(UUID.randomUUID()))
         .isInstanceOf(ExerciseNotFoundException.class);
+  }
+
+  @Test
+  void onlySkippingIsTimedItNeedsAWorkTimeAndIsDoneWithAJumpRope() {
+    Exercise skipping = catalog.get(UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c0c"));
+    Exercise pushUp = catalog.get(UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c06"));
+
+    assertThat(catalog.all()).filteredOn(Exercise::timed).containsExactly(skipping);
+    assertThat(skipping.mismatch(null, null, 60)).isEmpty();
+    assertThat(skipping.mismatch(null, null, null))
+        .contains("Skipping is timed and needs a work time");
+    assertThat(pushUp.mismatch(null, null, 60))
+        .contains("Push-up is not timed and takes no work time, was 60 s");
+    assertThat(skipping.mismatch(null, 60, 60))
+        .contains("Skipping is not a hold and takes no hold time, was 60 s");
+  }
+
+  @Test
+  void anExerciseIsDoneWithAKettlebellItsGearOrBodyWeight() {
+    assertThat(catalog.get(UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c01")).equipment())
+        .isEqualTo("Kettlebell");
+    assertThat(catalog.get(UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c0c")).equipment())
+        .isEqualTo("Jump rope");
+    assertThat(catalog.get(UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c06")).equipment())
+        .isEqualTo("Body weight");
+  }
+
+  @Test
+  void aLifterAddsAnExerciseAtTheEndOfTheCatalog() {
+    Exercise added = catalog.add("  Box jump ", true, false, false, " Box ");
+
+    assertThat(added.name()).isEqualTo("Box jump");
+    assertThat(added.equipment()).isEqualTo("Box");
+    assertThat(catalog.all()).hasSize(13).last().isEqualTo(added);
+    assertThat(catalog.get(added.id())).isEqualTo(added);
+    assertThat(new ExerciseCatalog().all()).hasSize(12);
+  }
+
+  @Test
+  void anExerciseNameIsTakenIgnoringCase() {
+    assertThatThrownBy(() -> catalog.add("swing", false, false, false, null))
+        .isInstanceOf(ExerciseNameTakenException.class)
+        .hasMessage("There is an Exercise named swing already");
+    assertThat(catalog.all()).hasSize(12);
+  }
+
+  @Test
+  void anAddedExerciseNeedsANameIsNotBothAHoldAndTimedAndHasGearOnlyWithoutABell() {
+    assertThatThrownBy(() -> catalog.add(" ", false, false, false, null))
+        .isInstanceOf(InvalidExerciseException.class)
+        .hasMessage("An Exercise needs a name");
+    assertThatThrownBy(() -> catalog.add("Wall sit", true, true, true, null))
+        .isInstanceOf(InvalidExerciseException.class)
+        .hasMessage("Wall sit cannot be both a hold and timed");
+    assertThatThrownBy(() -> catalog.add("Sled push", false, false, false, "Sled"))
+        .isInstanceOf(InvalidExerciseException.class)
+        .hasMessage("Sled push is done with a Bell and names no other gear, was Sled");
+    assertThat(catalog.all()).hasSize(12);
   }
 }

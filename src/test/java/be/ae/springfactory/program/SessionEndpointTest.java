@@ -39,7 +39,8 @@ class SessionEndpointTest {
         read(
             mvc.perform(post("/api/weeks/{id}/sessions", weekId))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.prescriptions.length()").value(0)),
+                .andExpect(jsonPath("$.parts.length()").value(0))
+                .andExpect(jsonPath("$.equipment.length()").value(0)),
             "$.id");
     mvc.perform(
             addPrescription(
@@ -64,9 +65,14 @@ class SessionEndpointTest {
             .andExpect(jsonPath("$.weeks[0].id").value(weekId))
             .andExpect(jsonPath("$.weeks[0].sessions.length()").value(1))
             .andExpect(jsonPath("$.weeks[0].sessions[0].id").value(sessionId))
-            .andExpect(jsonPath("$.weeks[0].sessions[0].prescriptions.length()").value(2))
-            .andExpect(jsonPath("$.weeks[0].sessions[0].prescriptions[0].sets").value(10))
-            .andExpect(jsonPath("$.weeks[0].sessions[0].prescriptions[1].restSeconds").isEmpty())
+            .andExpect(jsonPath("$.weeks[0].sessions[0].equipment[0]").value("Kettlebell"))
+            .andExpect(jsonPath("$.weeks[0].sessions[0].parts.length()").value(1))
+            .andExpect(jsonPath("$.weeks[0].sessions[0].parts[0].number").value(1))
+            .andExpect(jsonPath("$.weeks[0].sessions[0].parts[0].format").value("SETS"))
+            .andExpect(jsonPath("$.weeks[0].sessions[0].parts[0].prescriptions.length()").value(2))
+            .andExpect(jsonPath("$.weeks[0].sessions[0].parts[0].prescriptions[0].sets").value(10))
+            .andExpect(
+                jsonPath("$.weeks[0].sessions[0].parts[0].prescriptions[1].restSeconds").isEmpty())
             .andReturn()
             .getResponse()
             .getContentAsString();

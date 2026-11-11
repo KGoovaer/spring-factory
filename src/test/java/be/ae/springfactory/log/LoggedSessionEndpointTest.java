@@ -29,6 +29,7 @@ class LoggedSessionEndpointTest {
   private static final String SNATCH = "8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c05";
   private static final String PUSH_UP = "8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c06";
   private static final String PLANK = "8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c07";
+  private static final String SKIPPING = "8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c0c";
 
   @Autowired private MockMvc mvc;
 
@@ -261,6 +262,40 @@ class LoggedSessionEndpointTest {
                     .formatted(SWING)))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.date").value("2099-01-01"));
+  }
+
+  @Test
+  void logsSkippingInWorkTimeAndASetOnEachSide() throws Exception {
+    String sessionId = newSessionId();
+
+    mvc.perform(
+            log(
+                sessionId,
+                """
+                {"date":"2026-11-07","sets":[
+                  {"exerciseId":"%s","reps":1,"workSeconds":45},
+                  {"exerciseId":"%s","reps":8,"side":"EACH","bellKg":16}]}"""
+                    .formatted(SKIPPING, SWING)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.sets[0].workSeconds").value(45))
+        .andExpect(jsonPath("$.sets[0].side").value(nullValue()))
+        .andExpect(jsonPath("$.sets[1].side").value("EACH"));
+    mvc.perform(
+            correct(
+                sessionId,
+                """
+                {"date":"2026-11-07","sets":[{"exerciseId":"%s","reps":1}]}"""
+                    .formatted(SKIPPING)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.detail").value("Skipping is timed and needs a work time"));
+    mvc.perform(
+            correct(
+                sessionId,
+                """
+                {"date":"2026-11-07","sets":[{"exerciseId":"%s","reps":1,"workSeconds":45}],
+                 "minute":3}"""
+                    .formatted(SKIPPING)))
+        .andExpect(status().isBadRequest());
   }
 
   private static String oneSet(String bell) {

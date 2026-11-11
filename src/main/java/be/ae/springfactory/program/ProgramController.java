@@ -26,17 +26,17 @@ class ProgramController {
   ResponseEntity<ProgramResponse> create(@Valid @RequestBody CreateProgramRequest request) {
     Program program = programs.create(request.name());
     return ResponseEntity.created(URI.create("/api/programs/" + program.id()))
-        .body(ProgramResponse.of(program));
+        .body(ProgramResponse.of(program, programs::equipment));
   }
 
   @GetMapping("/{id}")
   ProgramResponse get(@PathVariable UUID id) {
-    return ProgramResponse.of(programs.get(id));
+    return ProgramResponse.of(programs.get(id), programs::equipment);
   }
 
   @PostMapping("/{id}/weeks")
   ResponseEntity<WeekResponse> addWeek(@PathVariable UUID id) {
     Week week = programs.addWeek(id);
-    return ResponseEntity.status(HttpStatus.CREATED).body(WeekResponse.of(week));
+    return ResponseEntity.status(HttpStatus.CREATED).body(WeekResponse.of(week, programs::equipment));
   }
 }

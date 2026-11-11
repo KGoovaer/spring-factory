@@ -1,13 +1,14 @@
 package be.ae.springfactory.log;
 
+import be.ae.springfactory.program.Side;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
 /**
- * The JSON shape of a Logged Session: {sessionId, date, sets: [{exerciseId, reps, holdSeconds,
- * bellKg}]}.
+ * The JSON shape of a Logged Session: {sessionId, date, sets: [{exerciseId, reps, side,
+ * holdSeconds, workSeconds, bellKg}]}.
  */
 record LoggedSessionResponse(UUID sessionId, LocalDate date, List<SetResponse> sets) {
 
@@ -18,10 +19,22 @@ record LoggedSessionResponse(UUID sessionId, LocalDate date, List<SetResponse> s
         logged.sets().stream().map(SetResponse::of).toList());
   }
 
-  record SetResponse(UUID exerciseId, int reps, Integer holdSeconds, BigDecimal bellKg) {
+  record SetResponse(
+      UUID exerciseId,
+      int reps,
+      Side side,
+      Integer holdSeconds,
+      Integer workSeconds,
+      BigDecimal bellKg) {
 
     static SetResponse of(LoggedSet set) {
-      return new SetResponse(set.exerciseId(), set.reps(), set.holdSeconds(), set.bellKg());
+      return new SetResponse(
+          set.exerciseId(),
+          set.reps(),
+          set.side(),
+          set.holdSeconds(),
+          set.workSeconds(),
+          set.bellKg());
     }
   }
 }

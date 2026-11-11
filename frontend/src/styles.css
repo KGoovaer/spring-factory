@@ -214,3 +214,83 @@ body {
 .hold-timer.over [role="timer"] {
   color: #1a7f37;
 }
+
+.equipment {
+  margin: 0.25rem 0;
+}
+
+.notes {
+  white-space: pre-line;
+  border-left: 4px solid #9aa4b1;
+  background: #fff;
+  padding: 0.5rem 0.75rem;
+  margin: 0.5rem 0;
+}
+
+.log-sets .part-heading th {
+  background: #e3e8ef;
+  font-weight: 700;
+  text-align: left;
+}
+
+.log-sets .place {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #4b5563;
+}
+
+.log-sets .rest-row td,
+.log-sets .rest-row th {
+  color: #4b5563;
+  font-style: italic;
+}
+
+.setup-week {
+  margin-bottom: 2rem;
+}
+
+.setup-session {
+  background: #fff;
+  border: 1px solid #dde1e6;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.setup-session h3 {
+  margin-top: 0;
+}
+
+.setup-part {
+  border-left: 3px solid #9aa4b1;
+  padding-left: 0.75rem;
+  margin: 0.75rem 0;
+}
+
+.setup-part h4 {
+  margin: 0.25rem 0;
+}
+
+.setup-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  margin: 0.5rem 0;
+}
+
+.setup-form input[type="number"] {
+  width: 5rem;
+}
+
+.notes-form label {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.emom-minutes {
+  list-style: none;
+  padding-left: 1rem;
+}

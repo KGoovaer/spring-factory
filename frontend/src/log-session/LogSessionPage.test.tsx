@@ -6,10 +6,121 @@ import { LogSessionPage } from "./LogSessionPage";
 const SWING = "e-swing";
 const PLANK = "e-plank";
 
+const PUSH_UP = "e-push-up";
+const SKIPPING = "e-skipping";
+const PRESS = "e-press";
+
 const EXERCISES = [
-  { id: SWING, name: "Swing", bodyweight: false, hold: false },
-  { id: PLANK, name: "Plank", bodyweight: true, hold: true },
+  { id: SWING, name: "Swing", bodyweight: false, hold: false, timed: false },
+  { id: PLANK, name: "Plank", bodyweight: true, hold: true, timed: false },
+  { id: PUSH_UP, name: "Push-up", bodyweight: true, hold: false, timed: false },
+  {
+    id: SKIPPING,
+    name: "Skipping",
+    bodyweight: true,
+    hold: false,
+    timed: true,
+  },
+  {
+    id: PRESS,
+    name: "Clean to waiter press",
+    bodyweight: false,
+    hold: false,
+    timed: false,
+  },
 ];
+
+/** A Prescription as the API answers it, with the fields a test leaves out set to null. */
+function prescription(fields: Record<string, unknown>) {
+  return {
+    sets: 1,
+    side: null,
+    holdSeconds: null,
+    workSeconds: null,
+    bellKg: null,
+    restSeconds: null,
+    minute: null,
+    ...fields,
+  };
+}
+
+/** A Session as the API answers it, with its Prescriptions in one Part of straight Sets. */
+function session(id: string, prescriptions: Record<string, unknown>[]) {
+  return {
+    id,
+    notes: null,
+    equipment: [],
+    parts: prescriptions.length
+      ? [
+          {
+            number: 1,
+            format: "SETS",
+            rounds: null,
+            minutes: null,
+            rotation: null,
+            restSeconds: null,
+            prescriptions: prescriptions.map(prescription),
+          },
+        ]
+      : [],
+  };
+}
+
+function part(fields: Record<string, unknown>) {
+  return {
+    rounds: null,
+    minutes: null,
+    rotation: null,
+    restSeconds: null,
+    prescriptions: [],
+    ...fields,
+  };
+}
+
+/** The workout of issue #20: a 20 min EMOM, 60 s rest, then 3 Rounds. */
+const EMOM_SESSION = {
+  id: "s3",
+  notes: "Keep intensity at 70-80%.",
+  equipment: ["Body weight", "Jump rope", "Kettlebell"],
+  parts: [
+    part({
+      number: 1,
+      format: "EMOM",
+      minutes: 20,
+      rotation: 4,
+      prescriptions: [
+        prescription({
+          exerciseId: SWING,
+          reps: 5,
+          side: "RIGHT",
+          bellKg: 16,
+          minute: 1,
+        }),
+        prescription({ exerciseId: PUSH_UP, reps: 5, minute: 1 }),
+        prescription({
+          exerciseId: SWING,
+          reps: 5,
+          side: "LEFT",
+          bellKg: 16,
+          minute: 2,
+        }),
+        prescription({
+          exerciseId: SKIPPING,
+          reps: 1,
+          workSeconds: 45,
+          minute: 3,
+        }),
+      ],
+    }),
+    part({ number: 2, format: "REST", restSeconds: 60 }),
+    part({
+      number: 3,
+      format: "ROUNDS",
+      rounds: 3,
+      prescriptions: [prescription({ exerciseId: PRESS, reps: 8, side: "EACH", bellKg: 12 })],
+    }),
+  ],
+};
 
 const PROGRAM = {
   id: "p1",
@@ -19,21 +130,20 @@ const PROGRAM = {
       id: "w1",
       number: 1,
       sessions: [
-        { id: "s0", prescriptions: [] },
-        {
-          id: "s1",
-          prescriptions: [
-            { exerciseId: SWING, sets: 2, reps: 10, holdSeconds: null, bellKg: 24, restSeconds: 60 },
-            { exerciseId: PLANK, sets: 1, reps: 1, holdSeconds: 30, bellKg: null, restSeconds: null },
-          ],
-        },
-        {
-          id: "s2",
-          prescriptions: [
-            { exerciseId: SWING, sets: 1, reps: 10, holdSeconds: null, bellKg: 24, restSeconds: 60 },
-            { exerciseId: SWING, sets: 1, reps: 5, holdSeconds: null, bellKg: 32, restSeconds: 120 },
-          ],
-        },
+        session("s0", []),
+        session("s1", [
+          { exerciseId: SWING, sets: 2, reps: 10, bellKg: 24, restSeconds: 60 },
+          { exerciseId: PLANK, sets: 1, reps: 1, holdSeconds: 30 },
+        ]),
+        session("s2", [
+          { exerciseId: SWING, sets: 1, reps: 10, bellKg: 24, restSeconds: 60 },
+          { exerciseId: SWING, sets: 1, reps: 5, bellKg: 32, restSeconds: 120 },
+        ]),
+        EMOM_SESSION,
+        session("s4", [
+          { exerciseId: SWING, reps: 8, side: "LEFT", bellKg: 16, restSeconds: 30 },
+          { exerciseId: SWING, reps: 8, side: "RIGHT", bellKg: 16, restSeconds: 90 },
+        ]),
       ],
     },
   ],
@@ -42,7 +152,16 @@ const PROGRAM = {
 const LOGGED = {
   sessionId: "s1",
   date: "2026-11-08",
-  sets: [{ exerciseId: SWING, reps: 8, holdSeconds: null, bellKg: 20 }],
+  sets: [
+    {
+      exerciseId: SWING,
+      reps: 8,
+      side: null,
+      holdSeconds: null,
+      workSeconds: null,
+      bellKg: 20,
+    },
+  ],
 };
 
 type Routes = Record<string, [number, unknown]>;
@@ -152,9 +271,13 @@ describe("LogSessionPage", () => {
     vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] });
     const plank = screen.getByRole("row", { name: "Set 3" });
 
-    fireEvent.change(within(plank).getByLabelText("Set 3 Hold time"), { target: { value: "" } });
+    fireEvent.change(within(plank).getByLabelText("Set 3 Hold time"), {
+      target: { value: "" },
+    });
     expect(within(plank).getByRole("button", { name: "Set 3 Start hold" })).toBeDisabled();
-    fireEvent.change(within(plank).getByLabelText("Set 3 Hold time"), { target: { value: "20" } });
+    fireEvent.change(within(plank).getByLabelText("Set 3 Hold time"), {
+      target: { value: "20" },
+    });
     fireEvent.click(within(plank).getByRole("button", { name: "Set 3 Start hold" }));
 
     const hold = within(plank).getByRole("timer", { name: "Set 3 hold" });
@@ -175,8 +298,12 @@ describe("LogSessionPage", () => {
     renderPage();
     await screen.findByRole("heading", { name: "Week 1 · Session 2" });
 
-    fireEvent.change(screen.getByLabelText("Date"), { target: { value: "2026-11-09" } });
-    fireEvent.change(screen.getByLabelText("Set 1 Reps"), { target: { value: "8" } });
+    fireEvent.change(screen.getByLabelText("Date"), {
+      target: { value: "2026-11-09" },
+    });
+    fireEvent.change(screen.getByLabelText("Set 1 Reps"), {
+      target: { value: "8" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Set 1 done" }));
     fireEvent.click(screen.getByRole("button", { name: "Set 3 done" }));
     expect(screen.getByText("2 of 3 Sets done")).toBeInTheDocument();
@@ -186,13 +313,29 @@ describe("LogSessionPage", () => {
     expect(sentBody(fetch, "POST")).toEqual({
       date: "2026-11-09",
       sets: [
-        { exerciseId: SWING, reps: 8, holdSeconds: null, bellKg: 24 },
-        { exerciseId: PLANK, reps: 1, holdSeconds: 30, bellKg: null },
+        {
+          exerciseId: SWING,
+          reps: 8,
+          side: null,
+          holdSeconds: null,
+          workSeconds: null,
+          bellKg: 24,
+        },
+        {
+          exerciseId: PLANK,
+          reps: 1,
+          side: null,
+          holdSeconds: 30,
+          workSeconds: null,
+          bellKg: null,
+        },
       ],
     });
     expect(screen.getByRole("button", { name: "Correct Logged Session" })).toBeEnabled();
 
-    fireEvent.change(screen.getByLabelText("Set 1 Reps"), { target: { value: "9" } });
+    fireEvent.change(screen.getByLabelText("Set 1 Reps"), {
+      target: { value: "9" },
+    });
     expect(screen.queryByText("Logged Session saved.")).not.toBeInTheDocument();
   });
 
@@ -201,14 +344,25 @@ describe("LogSessionPage", () => {
     renderPage();
     await screen.findByRole("heading", { name: "Week 1 · Session 2" });
 
-    fireEvent.change(screen.getByLabelText("Set 2 Reps"), { target: { value: "" } });
-    fireEvent.change(screen.getByLabelText("Set 3 Hold time"), { target: { value: "" } });
+    fireEvent.change(screen.getByLabelText("Set 2 Reps"), {
+      target: { value: "" },
+    });
+    fireEvent.change(screen.getByLabelText("Set 3 Hold time"), {
+      target: { value: "" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Set 1 done" }));
     fireEvent.click(screen.getByRole("button", { name: "Log Session" }));
 
     expect(await screen.findByRole("status")).toHaveTextContent("Logged Session saved.");
     expect(sentBody(fetch, "POST").sets).toEqual([
-      { exerciseId: SWING, reps: 10, holdSeconds: null, bellKg: 24 },
+      {
+        exerciseId: SWING,
+        reps: 10,
+        side: null,
+        holdSeconds: null,
+        workSeconds: null,
+        bellKg: 24,
+      },
     ]);
   });
 
@@ -217,7 +371,9 @@ describe("LogSessionPage", () => {
     renderPage();
     await screen.findByRole("heading", { name: "Week 1 · Session 2" });
 
-    fireEvent.change(screen.getByLabelText("Set 2 Bell"), { target: { value: "0" } });
+    fireEvent.change(screen.getByLabelText("Set 2 Bell"), {
+      target: { value: "0" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Set 1 done" }));
     fireEvent.click(screen.getByRole("button", { name: "Log Session" }));
     expect(screen.getByLabelText("Set 2 Bell")).toBeValid();
@@ -232,7 +388,7 @@ describe("LogSessionPage", () => {
     expect(fetch.mock.calls.filter(([, init]) => init?.method === "PUT")).toHaveLength(0);
   });
 
-  it("opens a Logged Session with its own Sets and corrects it", async () => {
+  it("opens a Logged Session with its Sets done in their planned rows and corrects it", async () => {
     const fetch = serve(
       notLogged({
         "GET /api/sessions/s1/log": [200, LOGGED],
@@ -243,18 +399,35 @@ describe("LogSessionPage", () => {
     await screen.findByRole("heading", { name: "Week 1 · Session 2" });
 
     expect(screen.getByLabelText("Date")).toHaveValue("2026-11-08");
-    expect(screen.getAllByRole("row", { name: /^Set \d+$/ })).toHaveLength(1);
+    expect(screen.getAllByRole("row", { name: /^Set \d+$/ })).toHaveLength(3);
+    expect(screen.getByLabelText("Set 1 Reps")).toHaveValue(8);
     expect(screen.getByRole("button", { name: "Set 1 done" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
-    fireEvent.change(screen.getByLabelText("Set 1 Bell"), { target: { value: "16" } });
+    expect(screen.getByRole("button", { name: "Set 2 done" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    expect(screen.getByText("1 of 3 Sets done")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Set 1 Bell"), {
+      target: { value: "16" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Correct Logged Session" }));
 
     expect(await screen.findByRole("status")).toHaveTextContent("Logged Session saved.");
     expect(sentBody(fetch, "PUT")).toEqual({
       date: "2026-11-08",
-      sets: [{ exerciseId: SWING, reps: 8, holdSeconds: null, bellKg: 16 }],
+      sets: [
+        {
+          exerciseId: SWING,
+          reps: 8,
+          side: null,
+          holdSeconds: null,
+          workSeconds: null,
+          bellKg: 16,
+        },
+      ],
     });
   });
 
@@ -268,8 +441,22 @@ describe("LogSessionPage", () => {
           sessionId: "s2",
           date: "2026-11-08",
           sets: [
-            { exerciseId: SWING, reps: 10, holdSeconds: null, bellKg: 24 },
-            { exerciseId: SWING, reps: 5, holdSeconds: null, bellKg: 32 },
+            {
+              exerciseId: SWING,
+              reps: 10,
+              side: null,
+              holdSeconds: null,
+              workSeconds: null,
+              bellKg: 24,
+            },
+            {
+              exerciseId: SWING,
+              reps: 5,
+              side: null,
+              holdSeconds: null,
+              workSeconds: null,
+              bellKg: 32,
+            },
           ],
         },
       ],
@@ -277,8 +464,172 @@ describe("LogSessionPage", () => {
     renderPage("/programs/p1/sessions/s2/log");
     await screen.findByRole("heading", { name: "Week 1 · Session 3" });
 
-    expect(within(screen.getByRole("row", { name: "Set 1" })).getByText("60 s")).toBeInTheDocument();
-    expect(within(screen.getByRole("row", { name: "Set 2" })).getByText("120 s")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("row", { name: "Set 1" })).getByText("60 s"),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("row", { name: "Set 2" })).getByText("120 s"),
+    ).toBeInTheDocument();
+  });
+
+  it("puts each logged Set in the planned row of its Side", async () => {
+    const swing = (side: string) => ({
+      exerciseId: SWING,
+      reps: 8,
+      side,
+      holdSeconds: null,
+      workSeconds: null,
+      bellKg: 16,
+    });
+    serve({
+      "GET /api/programs/p1": [200, PROGRAM],
+      "GET /api/exercises": [200, EXERCISES],
+      "GET /api/sessions/s4/log": [
+        200,
+        { sessionId: "s4", date: "2026-11-08", sets: [swing("RIGHT"), swing("LEFT")] },
+      ],
+    });
+    renderPage("/programs/p1/sessions/s4/log");
+    await screen.findByRole("heading", { name: "Week 1 · Session 5" });
+
+    // Planned Left, then Right: each logged Set fills the row of its Side.
+    const left = screen.getByRole("row", { name: "Set 1" });
+    expect(within(left).getByText("Left")).toBeInTheDocument();
+    expect(within(left).getByText("30 s")).toBeInTheDocument();
+    const right = screen.getByRole("row", { name: "Set 2" });
+    expect(within(right).getByText("Right")).toBeInTheDocument();
+    expect(within(right).getByText("90 s")).toBeInTheDocument();
+    expect(screen.getByText("2 of 2 Sets done")).toBeInTheDocument();
+  });
+
+  it("lays out an EMOM minute by minute, the rest between Parts and every Round", async () => {
+    serve({
+      "GET /api/programs/p1": [200, PROGRAM],
+      "GET /api/exercises": [200, EXERCISES],
+      "GET /api/sessions/s3/log": [404, { detail: "Session s3 has no Logged Session" }],
+    });
+    renderPage("/programs/p1/sessions/s3/log");
+    await screen.findByRole("heading", { name: "Week 1 · Session 4" });
+
+    expect(screen.getByText("Body weight, Jump rope, Kettlebell")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Notes" })).toHaveTextContent(
+      "Keep intensity at 70-80%.",
+    );
+    const emom = screen.getByRole("rowgroup", { name: "Part 1 · 20 min EMOM, rotating through 4 minutes" });
+    // 5 passes of: minute 1 (2 Sets), minute 2 (1 Set), minute 3 (1 Set), minute 4 (rest).
+    expect(within(emom).getAllByRole("row", { name: /^Set \d+$/ })).toHaveLength(20);
+    expect(within(emom).getAllByText("Rest 60 s")).toHaveLength(5);
+    const first = screen.getByRole("row", { name: "Set 1" });
+    expect(within(first).getByText("Minute 1")).toBeInTheDocument();
+    expect(within(first).getByText("Right")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("row", { name: "Set 3" })).getByText("Left"),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Set 4 Work time")).toHaveValue(45);
+
+    const rest = screen.getByRole("rowgroup", { name: "Part 2 · Rest 60 s" });
+    fireEvent.click(within(rest).getByRole("button", { name: "Start rest" }));
+    expect(
+      within(screen.getByRole("region", { name: "Rest" })).getByRole("timer"),
+    ).toHaveTextContent("1:00");
+
+    const rounds = screen.getByRole("rowgroup", { name: "Part 3 · 3 Rounds" });
+    expect(within(rounds).getAllByText("8+8")).toHaveLength(3);
+    expect(within(rounds).getByText("Round 3")).toBeInTheDocument();
+    expect(screen.getByText("0 of 23 Sets done")).toBeInTheDocument();
+  });
+
+  it("opens a logged EMOM in its Parts, minutes, rest and Rounds", async () => {
+    const set = (exerciseId: string, fields: Record<string, unknown>) => ({
+      exerciseId,
+      side: null,
+      holdSeconds: null,
+      workSeconds: null,
+      bellKg: null,
+      ...fields,
+    });
+    serve({
+      "GET /api/programs/p1": [200, PROGRAM],
+      "GET /api/exercises": [200, EXERCISES],
+      "GET /api/sessions/s3/log": [
+        200,
+        {
+          sessionId: "s3",
+          date: "2026-11-08",
+          sets: [
+            set(SWING, { reps: 5, side: "RIGHT", bellKg: 20 }),
+            set(PUSH_UP, { reps: 4 }),
+            set(PRESS, { reps: 8, side: "EACH", bellKg: 12 }),
+            set(PLANK, { reps: 1, holdSeconds: 30 }),
+          ],
+        },
+      ],
+    });
+    renderPage("/programs/p1/sessions/s3/log");
+    await screen.findByRole("heading", { name: "Week 1 · Session 4" });
+
+    const emom = screen.getByRole("rowgroup", {
+      name: "Part 1 · 20 min EMOM, rotating through 4 minutes",
+    });
+    expect(within(emom).getAllByText("Rest 60 s")).toHaveLength(5);
+    const first = screen.getByRole("row", { name: "Set 1" });
+    expect(within(first).getByText("Minute 1")).toBeInTheDocument();
+    expect(screen.getByLabelText("Set 1 Bell")).toHaveValue(20);
+    expect(screen.getByLabelText("Set 2 Reps")).toHaveValue(4);
+    expect(screen.getByRole("button", { name: "Set 2 done" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Set 5 done" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    expect(screen.getByRole("rowgroup", { name: "Part 2 · Rest 60 s" })).toBeInTheDocument();
+    const rounds = screen.getByRole("rowgroup", { name: "Part 3 · 3 Rounds" });
+    expect(within(within(rounds).getAllByRole("row", { name: /^Set \d+$/ })[0]).getByText(
+      "Round 1",
+    )).toBeInTheDocument();
+    const extra = screen.getByRole("rowgroup", { name: "Sets not in the plan" });
+    expect(within(extra).getByText("Plank")).toBeInTheDocument();
+    expect(screen.getByText("4 of 24 Sets done")).toBeInTheDocument();
+  });
+
+  it("logs a Timed Exercise with its Work time and a Set on Each side", async () => {
+    const fetch = serve({
+      "GET /api/programs/p1": [200, PROGRAM],
+      "GET /api/exercises": [200, EXERCISES],
+      "GET /api/sessions/s3/log": [404, { detail: "Session s3 has no Logged Session" }],
+      "POST /api/sessions/s3/log": [201, LOGGED],
+    });
+    renderPage("/programs/p1/sessions/s3/log");
+    await screen.findByRole("heading", { name: "Week 1 · Session 4" });
+
+    fireEvent.change(screen.getByLabelText("Set 4 Work time"), {
+      target: { value: "40" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Set 4 done" }));
+    fireEvent.click(screen.getByRole("button", { name: "Set 21 done" }));
+    fireEvent.click(screen.getByRole("button", { name: "Log Session" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Logged Session saved.");
+    expect(sentBody(fetch, "POST").sets).toEqual([
+      {
+        exerciseId: SKIPPING,
+        reps: 1,
+        side: null,
+        holdSeconds: null,
+        workSeconds: 40,
+        bellKg: null,
+      },
+      {
+        exerciseId: PRESS,
+        reps: 8,
+        side: "EACH",
+        holdSeconds: null,
+        workSeconds: null,
+        bellKg: 12,
+      },
+    ]);
   });
 
   it("shows the server's reason when the log is rejected", async () => {
@@ -314,7 +665,9 @@ describe("LogSessionPage", () => {
   });
 
   it("shows the server's reason when the Program cannot be loaded", async () => {
-    serve({ "GET /api/programs/p1": [404, { detail: "No Program with id p1" }] });
+    serve({
+      "GET /api/programs/p1": [404, { detail: "No Program with id p1" }],
+    });
 
     renderPage();
 
