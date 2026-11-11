@@ -88,8 +88,16 @@ public record Part(
    * The Reps of one Round of an AMRAP, the Prescriptions' Reps summed (twice on Each side, the low
    * end of a rep range). Extra Reps of a Score are fewer than this.
    */
-  public int repsPerRound() {
-    return prescriptions.stream().mapToInt(Prescription::repsDone).sum();
+  public long repsPerRound() {
+    return prescriptions.stream().mapToLong(Prescription::repsDone).sum();
+  }
+
+  /**
+   * Whether {@code extraReps} Reps into the next Round of an AMRAP stay short of a whole one, as
+   * the extra Reps of a Score must. No extra Reps always do.
+   */
+  public boolean isShortOfARound(int extraReps) {
+    return extraReps == 0 || extraReps < repsPerRound();
   }
 
   /**
@@ -105,7 +113,7 @@ public record Part(
       throw new InvalidPartException(
           "A Score cannot be negative, was " + rounds + " Rounds + " + extraReps + " Reps");
     }
-    if (extraReps > 0 && extraReps >= repsPerRound()) {
+    if (!isShortOfARound(extraReps)) {
       throw new InvalidPartException(
           extraReps
               + " extra Reps make a whole Round of "
@@ -113,9 +121,9 @@ public record Part(
               + " Reps: count it as a Round");
     }
     BigDecimal volume = volume().multiply(BigDecimal.valueOf(rounds));
-    int left = extraReps;
+    long left = extraReps;
     for (Prescription prescription : prescriptions) {
-      int reps = Math.min(left, prescription.repsDone());
+      long reps = Math.min(left, prescription.repsDone());
       volume = volume.add(prescription.volume(reps));
       left -= reps;
     }

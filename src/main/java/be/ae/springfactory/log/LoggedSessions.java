@@ -3,7 +3,6 @@ package be.ae.springfactory.log;
 import be.ae.springfactory.exercise.Exercise;
 import be.ae.springfactory.exercise.ExerciseCatalog;
 import be.ae.springfactory.program.Part;
-import be.ae.springfactory.program.PartFormat;
 import be.ae.springfactory.program.Programs;
 import be.ae.springfactory.program.Session;
 import java.time.LocalDate;
@@ -109,16 +108,14 @@ public class LoggedSessions {
   }
 
   private static void fits(Session session, Score score) {
-    if (score.part() > session.parts().size()) {
-      throw new InvalidLoggedSessionException(
-          "This Session has no Part " + score.part() + " to score");
-    }
-    Part part = session.parts().get(score.part() - 1);
-    if (part.format() != PartFormat.AMRAP) {
-      throw new InvalidLoggedSessionException(
-          "Part " + score.part() + " is no AMRAP, so it has no Score");
-    }
-    if (score.extraReps() > 0 && score.extraReps() >= part.repsPerRound()) {
+    Part part =
+        session
+            .amrap(score.part())
+            .orElseThrow(
+                () ->
+                    new InvalidLoggedSessionException(
+                        "This Session has no AMRAP Part " + score.part() + " to score"));
+    if (!part.isShortOfARound(score.extraReps())) {
       throw new InvalidLoggedSessionException(
           score.extraReps()
               + " extra Reps make a whole Round of "

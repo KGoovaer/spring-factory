@@ -97,12 +97,12 @@ public record Prescription(
   }
 
   /** The Reps done once through this Prescription: Sets × Reps, twice on {@code EACH} side. */
-  int repsDone() {
-    return sets * reps * Side.repsFactor(side);
+  long repsDone() {
+    return (long) sets * reps * Side.repsFactor(side);
   }
 
   /** Volume of {@code reps} Reps of this Prescription, as counted by {@link #repsDone()}. */
-  BigDecimal volume(int reps) {
+  BigDecimal volume(long reps) {
     return bellKg == null ? BigDecimal.ZERO : bellKg.multiply(BigDecimal.valueOf(reps));
   }
 }

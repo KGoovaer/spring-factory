@@ -12,10 +12,11 @@ import java.util.UUID;
 
 /**
  * The body of POST and PUT /api/sessions/{id}/log: {date, sets: [{exerciseId, reps, side,
- * holdSeconds, workSeconds, bellKg}], scores: [{part, rounds, extraReps}]}. sets or scores may be left out, but not both:
- * it holds the Score of each AMRAP Part done, by its number in the Session. side (LEFT, RIGHT or EACH) may be left out; bellKg is left
- * out (or null) for a bodyweight Exercise; holdSeconds is given only for a hold Exercise and
- * workSeconds only for a timed one.
+ * holdSeconds, workSeconds, bellKg}], scores: [{part, rounds, extraReps}]}. sets or scores may be
+ * left out, but not both. scores holds the Score of each AMRAP Part done, by the Part's number in
+ * the Session. side (LEFT, RIGHT or EACH) may be left out; bellKg is left out (or null) for a
+ * bodyweight Exercise; holdSeconds is given only for a hold Exercise and workSeconds only for a
+ * timed one.
  */
 record LogSessionRequest(
     @NotNull LocalDate date,

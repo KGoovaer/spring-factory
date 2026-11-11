@@ -1,7 +1,5 @@
 package be.ae.springfactory.log;
 
-import be.ae.springfactory.program.Part;
-import be.ae.springfactory.program.PartFormat;
 import be.ae.springfactory.program.Session;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -50,8 +48,8 @@ public record LoggedSession(
   /**
    * Logged Volume of this Logged Session of the {@code planned} Session: the Volume of its Sets,
    * plus that of each Score as its AMRAP Part counts it (whole Rounds, then the extra Reps through
-   * the Prescriptions in order). A Score of a Part the Session no longer has, or no longer as an
-   * AMRAP, adds 0.
+   * the Prescriptions in order). A Score of a Part the Session no longer has, no longer as an
+   * AMRAP, or whose extra Reps no longer stay short of its Round, adds 0.
    */
   public BigDecimal volume(Session planned) {
     BigDecimal sets =
@@ -62,12 +60,10 @@ public record LoggedSession(
   }
 
   private static BigDecimal scoreVolume(Session planned, Score score) {
-    if (score.part() > planned.parts().size()) {
-      return BigDecimal.ZERO;
-    }
-    Part part = planned.parts().get(score.part() - 1);
-    return part.format() == PartFormat.AMRAP
-        ? part.volume(score.rounds(), score.extraReps())
-        : BigDecimal.ZERO;
+    return planned
+        .amrap(score.part())
+        .filter(part -> part.isShortOfARound(score.extraReps()))
+        .map(part -> part.volume(score.rounds(), score.extraReps()))
+        .orElse(BigDecimal.ZERO);
   }
 }
