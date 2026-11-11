@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import be.ae.springfactory.exercise.ExerciseCatalog;
+import be.ae.springfactory.exercise.ExerciseCatalogs;
 import be.ae.springfactory.exercise.ExerciseNotFoundException;
 import be.ae.springfactory.program.Prescription;
 import be.ae.springfactory.program.Programs;
@@ -32,7 +33,7 @@ class LoggedSessionsTest {
   private static final UUID SIT_UP = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c08");
   private static final LocalDate DAY = LocalDate.of(2026, 11, 7);
 
-  private final ExerciseCatalog catalog = new ExerciseCatalog();
+  private final ExerciseCatalog catalog = ExerciseCatalogs.seeded();
   private final Programs programs = new Programs(catalog);
   private final LoggedSessions loggedSessions = new LoggedSessions(programs, catalog);
 

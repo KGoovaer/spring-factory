@@ -3,7 +3,7 @@ package be.ae.springfactory.program;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import be.ae.springfactory.exercise.ExerciseCatalog;
+import be.ae.springfactory.exercise.ExerciseCatalogs;
 import be.ae.springfactory.exercise.ExerciseNotFoundException;
 import java.math.BigDecimal;
 import java.util.List;
@@ -22,7 +22,7 @@ class SessionsTest {
   private static final UUID PUSH_UP = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c06");
   private static final UUID PLANK = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c07");
 
-  private final Programs programs = new Programs(new ExerciseCatalog());
+  private final Programs programs = new Programs(ExerciseCatalogs.seeded());
 
   @Test
   void everyWeekGetsItsOwnIdAndStartsWithNoSessions() {

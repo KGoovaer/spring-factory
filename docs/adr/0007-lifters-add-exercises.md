@@ -1,5 +1,8 @@
 # Lifters add Exercises
 
+The persistence of Exercises, and editing and removing them, are replaced by
+docs/adr/0009-exercises-live-in-a-database.md.
+
 A Lifter adds an Exercise with `POST /api/exercises` and in the setup page:
 a name, whether it is bodyweight, a hold or timed, and for a Bodyweight
 Exercise the gear it needs, such as a jump rope. Added Exercises get random

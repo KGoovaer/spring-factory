@@ -3,7 +3,7 @@ package be.ae.springfactory.program;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import be.ae.springfactory.exercise.ExerciseCatalog;
+import be.ae.springfactory.exercise.ExerciseCatalogs;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
@@ -24,7 +24,7 @@ class PartsTest {
   private static final UUID SKIPPING = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c0c");
   private static final BigDecimal BELL = new BigDecimal("16");
 
-  private final Programs programs = new Programs(new ExerciseCatalog());
+  private final Programs programs = new Programs(ExerciseCatalogs.seeded());
 
   @Test
   void holdsTheWorkoutOfIssue20AsAnEmomARestAndRounds() {

@@ -3,7 +3,7 @@ package be.ae.springfactory.program;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import be.ae.springfactory.exercise.ExerciseCatalog;
+import be.ae.springfactory.exercise.ExerciseCatalogs;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 
 class ProgramsTest {
 
-  private final Programs programs = new Programs(new ExerciseCatalog());
+  private final Programs programs = new Programs(ExerciseCatalogs.seeded());
 
   @Test
   void aNewProgramHasItsNameAndNoWeeks() {

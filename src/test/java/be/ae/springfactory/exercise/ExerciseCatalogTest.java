@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 
 class ExerciseCatalogTest {
 
-  private final ExerciseCatalog catalog = new ExerciseCatalog();
+  private final ExerciseCatalog catalog = ExerciseCatalogs.seeded();
 
   @Test
   void seedsTheKettlebellExercisesThenTheBodyweightOnesInOrder() {
@@ -72,7 +72,7 @@ class ExerciseCatalogTest {
 
   @Test
   void idsAreStableAcrossInstances() {
-    assertThat(new ExerciseCatalog().all()).isEqualTo(catalog.all());
+    assertThat(ExerciseCatalogs.seeded().all()).isEqualTo(catalog.all());
     assertThat(catalog.all().get(0).id())
         .isEqualTo(UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c01"));
   }
@@ -131,7 +131,7 @@ class ExerciseCatalogTest {
     assertThat(added.equipment()).isEqualTo("Box");
     assertThat(catalog.all()).hasSize(13).last().isEqualTo(added);
     assertThat(catalog.get(added.id())).isEqualTo(added);
-    assertThat(new ExerciseCatalog().all()).hasSize(12);
+    assertThat(ExerciseCatalogs.seeded().all()).hasSize(12);
   }
 
   @Test
@@ -154,5 +154,57 @@ class ExerciseCatalogTest {
         .isInstanceOf(InvalidExerciseException.class)
         .hasMessage("Sled push is done with a Bell and names no other gear, was Sled");
     assertThat(catalog.all()).hasSize(12);
+  }
+
+  @Test
+  void aLifterChangesAnExerciseKeepingItsIdAndPlace() {
+    UUID sitUp = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c08");
+
+    Exercise changed = catalog.change(sitUp, " Hollow hold ", true, true, false, null);
+
+    assertThat(changed).isEqualTo(new Exercise(sitUp, "Hollow hold", true, true));
+    assertThat(catalog.get(sitUp)).isEqualTo(changed);
+    assertThat(catalog.all()).hasSize(12).element(9).isEqualTo(changed);
+  }
+
+  @Test
+  void aChangeKeepsTheExerciseRulesAndNamesUniqueIgnoringCase() {
+    UUID swing = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c01");
+
+    assertThatThrownBy(() -> catalog.change(swing, "SNATCH", false, false, false, null))
+        .isInstanceOf(ExerciseNameTakenException.class);
+    assertThatThrownBy(() -> catalog.change(swing, "Swing", false, false, false, "Sled"))
+        .isInstanceOf(InvalidExerciseException.class);
+    assertThatThrownBy(() -> catalog.change(swing, "Swing", true, true, true, null))
+        .isInstanceOf(InvalidExerciseException.class);
+    assertThat(catalog.change(swing, "swing", false, false, false, null).name())
+        .isEqualTo("swing");
+    assertThatThrownBy(() -> catalog.change(UUID.randomUUID(), "Lunge", false, false, false, null))
+        .isInstanceOf(ExerciseNotFoundException.class);
+  }
+
+  @Test
+  void aRemovedExerciseIsNoLongerListedButStillFoundAndFreesItsName() {
+    UUID snatch = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c05");
+
+    catalog.remove(snatch);
+
+    assertThat(catalog.all()).hasSize(11).extracting(Exercise::name).doesNotContain("Snatch");
+    assertThat(catalog.get(snatch).name()).isEqualTo("Snatch");
+    Exercise again = catalog.add("Snatch", false, false, false, null);
+    assertThat(again.id()).isNotEqualTo(snatch);
+    assertThat(catalog.all()).last().isEqualTo(again);
+  }
+
+  @Test
+  void aRemovedExerciseCannotBeChangedOrRemovedAgain() {
+    UUID snatch = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c05");
+    catalog.remove(snatch);
+
+    assertThatThrownBy(() -> catalog.remove(snatch)).isInstanceOf(ExerciseNotFoundException.class);
+    assertThatThrownBy(() -> catalog.change(snatch, "Snatch", false, false, false, null))
+        .isInstanceOf(ExerciseNotFoundException.class);
+    assertThatThrownBy(() -> catalog.remove(UUID.randomUUID()))
+        .isInstanceOf(ExerciseNotFoundException.class);
   }
 }

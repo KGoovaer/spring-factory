@@ -1,14 +1,17 @@
 package be.ae.springfactory.exercise;
 
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.UUID;
+import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -93,5 +96,71 @@ class ExerciseEndpointTest {
                 .content("{\"name\":\"Lunge %s\",\"side\":\"LEFT\"}".formatted(UUID.randomUUID())))
         .andExpect(status().isBadRequest())
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+  }
+
+  @Test
+  void aLifterChangesAnExercise() throws Exception {
+    String id = added("Lunge " + UUID.randomUUID());
+    String name = "Walking lunge " + UUID.randomUUID();
+
+    mvc.perform(
+            put("/api/exercises/" + id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"%s\",\"bodyweight\":true}".formatted(name)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(id))
+        .andExpect(jsonPath("$.name").value(name))
+        .andExpect(jsonPath("$.equipment").value("Body weight"));
+
+    mvc.perform(get("/api/exercises"))
+        .andExpect(jsonPath("$[?(@.id == '%s')].name".formatted(id)).value(name));
+  }
+
+  @Test
+  void aChangeToATakenNameIsAConflictABadOneABadRequestAndAnUnknownIdNotFound()
+      throws Exception {
+    String id = added("Halo " + UUID.randomUUID());
+
+    mvc.perform(
+            put("/api/exercises/" + id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"swing\"}"))
+        .andExpect(status().isConflict());
+    mvc.perform(
+            put("/api/exercises/" + id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Halo\",\"gear\":\"Sled\"}"))
+        .andExpect(status().isBadRequest());
+    mvc.perform(put("/api/exercises/" + id).contentType(MediaType.APPLICATION_JSON).content("{}"))
+        .andExpect(status().isBadRequest());
+    mvc.perform(
+            put("/api/exercises/" + UUID.randomUUID())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Halo\"}"))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void aLifterRemovesAnExerciseThatIsThenNoLongerListed() throws Exception {
+    String id = added("Windmill " + UUID.randomUUID());
+
+    mvc.perform(delete("/api/exercises/" + id)).andExpect(status().isNoContent());
+
+    mvc.perform(get("/api/exercises"))
+        .andExpect(jsonPath("$[?(@.id == '%s')]".formatted(id)).isEmpty());
+    mvc.perform(delete("/api/exercises/" + id)).andExpect(status().isNotFound());
+  }
+
+  private String added(String name) throws Exception {
+    String body =
+        mvc.perform(
+                post("/api/exercises")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"name\":\"%s\"}".formatted(name)))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    return JsonPath.read(body, "$.id");
   }
 }
