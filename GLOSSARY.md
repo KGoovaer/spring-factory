@@ -43,7 +43,7 @@ What a Session needs, derived from its Exercises and never typed in: Kettlebell 
 _Avoid_: Gear (for the Session's list)
 
 **Exercise**:
-A named movement, such as a swing, goblet squat, clean and press or Turkish get-up. Most Exercises are Kettlebell Exercises, done with a Bell; a few, such as the push-up, plank and sit-up, are Bodyweight Exercises, done without one. Some are seeded; a Lifter adds others, and renames or removes any of them. A removed Exercise is no longer offered, but what was planned or logged with it keeps it.
+A named movement, such as a swing, goblet squat, clean and press or Turkish get-up. Most Exercises are Kettlebell Exercises, done with a Bell; a few, such as the push-up, plank and sit-up, are Bodyweight Exercises, done without one. Some are seeded; a Lifter adds others, and renames or removes any of them. An Exercise that is planned or logged cannot be removed.
 _Avoid_: Movement, Lift
 
 **Kettlebell Exercise**:

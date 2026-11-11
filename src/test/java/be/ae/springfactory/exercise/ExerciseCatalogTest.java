@@ -197,13 +197,13 @@ class ExerciseCatalogTest {
   }
 
   @Test
-  void aRemovedExerciseIsNoLongerListedButStillFoundAndFreesItsName() {
+  void aRemovedExerciseIsGoneAndFreesItsName() {
     UUID snatch = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c05");
 
     catalog.remove(snatch);
 
     assertThat(catalog.all()).hasSize(11).extracting(Exercise::name).doesNotContain("Snatch");
-    assertThat(catalog.get(snatch).name()).isEqualTo("Snatch");
+    assertThatThrownBy(() -> catalog.get(snatch)).isInstanceOf(ExerciseNotFoundException.class);
     Exercise again = catalog.add("Snatch", false, false, false, null);
     assertThat(again.id()).isNotEqualTo(snatch);
     assertThat(catalog.all()).last().isEqualTo(again);

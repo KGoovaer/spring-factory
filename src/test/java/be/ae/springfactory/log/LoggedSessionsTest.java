@@ -54,6 +54,14 @@ class LoggedSessionsTest {
   }
 
   @Test
+  void loggedSessionsUseTheExercisesOfTheirSets() {
+    loggedSessions.log(newSession().id(), DAY, oneSet());
+
+    assertThat(loggedSessions.uses(SWING)).isTrue();
+    assertThat(loggedSessions.uses(SNATCH)).isFalse();
+  }
+
+  @Test
   void aSetOnEachSideCountsItsRepsTwiceInVolume() {
     LoggedSession logged =
         loggedSessions.log(

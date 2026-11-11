@@ -10,8 +10,8 @@ import java.util.UUID;
 /**
  * An Exercise as the exercise table keeps it (see V1__create_exercise.sql), with its place in the
  * catalog. Built only from an {@link Exercise} and read back only through one, so the Exercise's
- * rules hold for every row. {@code nameKey} is the lower-cased name while the Exercise is listed,
- * so listed names are unique ignoring case; a removed Exercise gives it up.
+ * rules hold for every row. {@code nameKey} is the lower-cased name, so names are unique ignoring
+ * case.
  */
 @Entity
 @Table(name = "exercise")
@@ -22,7 +22,7 @@ class ExerciseRow {
   @Column(nullable = false, length = Exercise.MAX_LENGTH)
   private String name;
 
-  @Column(length = Exercise.MAX_LENGTH)
+  @Column(nullable = false, unique = true, length = Exercise.MAX_LENGTH)
   private String nameKey;
 
   private boolean bodyweight;
@@ -33,7 +33,6 @@ class ExerciseRow {
   private String gear;
 
   private int position;
-  private boolean removed;
 
   /** For JPA. */
   protected ExerciseRow() {}
@@ -48,7 +47,7 @@ class ExerciseRow {
     rename(exercise.name());
   }
 
-  /** The lower-cased name that listed Exercises may not share. */
+  /** The lower-cased name that no two Exercises share. */
   static String nameKey(String name) {
     return name.toLowerCase(Locale.ROOT);
   }
@@ -61,18 +60,9 @@ class ExerciseRow {
     return position;
   }
 
-  boolean removed() {
-    return removed;
-  }
-
   /** Takes this name, which an {@link Exercise} has checked. */
   void rename(String name) {
     this.name = name;
     this.nameKey = nameKey(name);
-  }
-
-  void remove() {
-    this.removed = true;
-    this.nameKey = null;
   }
 }

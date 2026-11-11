@@ -52,6 +52,18 @@ class SessionsTest {
   }
 
   @Test
+  void programsUseTheExercisesTheyPrescribe() {
+    UUID weekId = programs.addWeek(programs.create("Simple & Sinister").id()).id();
+    Session session = programs.addSession(weekId);
+
+    programs.addPrescription(
+        session.id(), new Prescription(SWING, 10, 10, new BigDecimal("24"), 60));
+
+    assertThat(programs.uses(SWING)).isTrue();
+    assertThat(programs.uses(GET_UP)).isFalse();
+  }
+
+  @Test
   void prescriptionsAreAddedToTheirSessionInOrder() {
     UUID id = programs.create("Simple & Sinister").id();
     UUID weekId = programs.addWeek(id).id();

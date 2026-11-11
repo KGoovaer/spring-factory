@@ -8,12 +8,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 /** The rows of the exercise table. Only {@link ExerciseCatalog} uses it. */
 interface ExerciseRows extends JpaRepository<ExerciseRow, UUID> {
 
-  /** The listed Exercises, in catalog order. */
-  List<ExerciseRow> findByRemovedFalseOrderByPosition();
+  /** All rows, in catalog order. */
+  List<ExerciseRow> findAllByOrderByPosition();
 
-  /** The row last in the catalog, listed or removed. */
+  /** The row last in the catalog. */
   Optional<ExerciseRow> findTopByOrderByPositionDesc();
 
-  /** Whether another listed Exercise than this id has this name key. */
+  /** Whether an Exercise other than this id has this name key. */
   boolean existsByNameKeyAndIdNot(String nameKey, UUID id);
 }

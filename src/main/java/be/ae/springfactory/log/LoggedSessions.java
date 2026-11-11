@@ -2,6 +2,7 @@ package be.ae.springfactory.log;
 
 import be.ae.springfactory.exercise.Exercise;
 import be.ae.springfactory.exercise.ExerciseCatalog;
+import be.ae.springfactory.exercise.ExerciseUsage;
 import be.ae.springfactory.program.Part;
 import be.ae.springfactory.program.Programs;
 import be.ae.springfactory.program.Session;
@@ -20,7 +21,7 @@ import org.springframework.stereotype.Component;
  * log the same Session at once, only one wins.
  */
 @Component
-public class LoggedSessions {
+public class LoggedSessions implements ExerciseUsage {
 
   private final Map<UUID, LoggedSession> logs = new ConcurrentHashMap<>();
   private final Programs programs;
@@ -109,6 +110,14 @@ public class LoggedSessions {
       throw new LoggedSessionNotFoundException(sessionId);
     }
     return corrected;
+  }
+
+  /** Whether a Logged Set of any Logged Session is of the Exercise with this id. */
+  @Override
+  public boolean uses(UUID exerciseId) {
+    return logs.values().stream()
+        .flatMap(logged -> logged.sets().stream())
+        .anyMatch(set -> set.exerciseId().equals(exerciseId));
   }
 
   /**

@@ -1,6 +1,7 @@
 package be.ae.springfactory.exercise;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -35,7 +36,7 @@ class ExercisePersistenceTest {
 
       assertThat(catalog.all()).isEqualTo(before).hasSize(12).last().isEqualTo(boxJump);
       assertThat(catalog.get(SWING).name()).isEqualTo("Two-hand swing");
-      assertThat(catalog.get(SNATCH).name()).isEqualTo("Snatch");
+      assertThatThrownBy(() -> catalog.get(SNATCH)).isInstanceOf(ExerciseNotFoundException.class);
     }
   }
 }

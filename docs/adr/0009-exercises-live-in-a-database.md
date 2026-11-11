@@ -31,18 +31,21 @@ Exercises move first, on their own.
   classification never changes, because Prescriptions and Logged Sets look
   their Exercise up: a changed one would change the Equipment of Sessions
   already planned and turn their Bell weights, Hold times and Work times
-  invalid. `DELETE /api/exercises/{id}` removes it from the list and frees its
-  name, but keeps the row: `get` still finds it, so the Prescriptions and
-  Logged Sets that refer to it keep their Equipment and Volume.
+  invalid. `DELETE /api/exercises/{id}` deletes it and frees its name, unless a
+  Prescription or a Logged Set refers to it: then it is a 409. Programs and
+  Logged Sessions say so as an `ExerciseUsage`, which the catalog asks only
+  when it removes, since both need the catalog themselves.
 
 ## Left out
 
 - **Programs and Logged Sessions in the database.** They stay in memory and are
   still lost on restart. When they move, their references to Exercises become
   foreign keys.
-- **Changing or removing Exercises in the setup page.** The API comes first.
-- **Refusing a new Prescription for a removed Exercise.** The setup page only
-  offers listed Exercises; the API still accepts a removed one's id.
+- **Renaming or removing Exercises in the setup page.** The API comes first.
+- **Removing an Exercise while it is being prescribed or logged.** The catalog
+  checks the usages and then deletes; a Prescription or Logged Set added in
+  between would refer to an Exercise that is gone. Foreign keys close that gap
+  when Programs and Logged Sessions move to the database.
 
 ## Considered options
 
@@ -56,5 +59,6 @@ Exercises move first, on their own.
   and Logged Sessions can share when they move.
 - **Seeding at startup in Java**: keeps the seeds next to the code, but runs on
   every start and has to decide each time whether a Lifter renamed a seed.
-- **Deleting a removed Exercise's row**: Prescriptions and Logged Sets that
-  refer to it would fail to find it, and the Program pages with them.
+- **Keeping a removed Exercise's row**, so what refers to it still finds it:
+  the first version of #22 did, but review asked to refuse removing an
+  Exercise in use, and then nothing refers to a removed one.

@@ -10,14 +10,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.util.UUID;
 import com.jayway.jsonpath.JsonPath;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -170,6 +171,42 @@ class ExerciseEndpointTest {
   }
 
   @Test
+  void anExercisePrescribedInAProgramCannotBeRemoved() throws Exception {
+    String id = added("Bear crawl " + UUID.randomUUID(), true, false);
+    String sessionId = newSessionId();
+
+    mvc.perform(
+            post("/api/sessions/{id}/prescriptions", sessionId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"exerciseId\":\"%s\",\"sets\":3,\"reps\":10}".formatted(id)))
+        .andExpect(status().isCreated());
+
+    mvc.perform(delete("/api/exercises/" + id))
+        .andExpect(status().isConflict())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+    mvc.perform(get("/api/exercises"))
+        .andExpect(jsonPath("$[?(@.id == '%s')]".formatted(id)).isNotEmpty());
+  }
+
+  @Test
+  void anExerciseInALoggedSessionCannotBeRemoved() throws Exception {
+    String id = added("Crab walk " + UUID.randomUUID(), true, false);
+    String sessionId = newSessionId();
+
+    mvc.perform(
+            post("/api/sessions/{id}/log", sessionId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"date":"2026-11-11","sets":[{"exerciseId":"%s","reps":10}]}
+                    """
+                        .formatted(id)))
+        .andExpect(status().isCreated());
+
+    mvc.perform(delete("/api/exercises/" + id)).andExpect(status().isConflict());
+  }
+
+  @Test
   void aNameLongerThanTheCatalogKeepsIsABadRequest() throws Exception {
     mvc.perform(
             post("/api/exercises")
@@ -177,6 +214,22 @@ class ExerciseEndpointTest {
                 .content("{\"name\":\"%s\"}".formatted("x".repeat(201))))
         .andExpect(status().isBadRequest())
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+  }
+
+  private String newSessionId() throws Exception {
+    String programId =
+        read(
+            mvc.perform(
+                post("/api/programs")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"name\":\"Giant\"}")),
+            "$.id");
+    String weekId = read(mvc.perform(post("/api/programs/{id}/weeks", programId)), "$.id");
+    return read(mvc.perform(post("/api/weeks/{id}/sessions", weekId)), "$.id");
+  }
+
+  private static String read(ResultActions result, String path) throws Exception {
+    return JsonPath.read(result.andReturn().getResponse().getContentAsString(), path);
   }
 
   private String added(String name, boolean bodyweight, boolean hold) throws Exception {
