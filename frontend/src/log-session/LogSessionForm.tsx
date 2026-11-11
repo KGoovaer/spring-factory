@@ -7,7 +7,7 @@ import { PartClockView } from "./PartClockView";
 import { RestTimer } from "./RestTimer";
 import { SessionTimerView } from "./SessionTimerView";
 import type { Beep } from "./beeps";
-import { currentStep, sharedMinutes, type PartSteps } from "./currentStep";
+import { currentStep, minuteGroups, type PartSteps } from "./currentStep";
 import {
   bellWeightProblem,
   correctLoggedSession,
@@ -70,10 +70,8 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
       title: part.title,
       clock: part.clock,
       amrap: part.amrap,
-      // The EMOM minutes this Part groups under a heading: those with several Sets.
-      sharedMinutes: sharedMinutes(
-        part.rows.map((row) => (row.kind === "set" ? row.set.minute : null)),
-      ),
+      // Where each row sits among the EMOM minute headings.
+      groups: minuteGroups(part.rows.map((row) => (row.kind === "set" ? row.set.minute : null))),
       rows: part.rows.map((row, rowIndex): LayoutRow =>
         row.kind === "set"
           ? { kind: "set", key: key++ }
@@ -339,11 +337,7 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
                   />
                 )}
                 {part.rows.map((item, index) => {
-                  const minute = item.kind === "set" ? rows[item.key].minute : null;
-                  const grouped = minute !== null && part.sharedMinutes.has(minute);
-                  const previous = part.rows[index - 1];
-                  const startsGroup =
-                    grouped && !(previous?.kind === "set" && rows[previous.key].minute === minute);
+                  const { minute, startsGroup } = part.groups[index];
                   return [
                     startsGroup && (
                       <tr key={`minute-${minute}`} className="minute-heading">
@@ -381,7 +375,7 @@ export function LogSessionForm({ session, today }: { session: SessionToLog; toda
                         update={update}
                         toggleDone={toggleDone}
                         current={current.sets.includes(item.key)}
-                        grouped={grouped}
+                        grouped={minute !== null}
                       />
                     ),
                   ];

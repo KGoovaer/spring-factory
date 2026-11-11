@@ -56,18 +56,33 @@ export function currentStep(parts: PartSteps[]): CurrentStep {
   return { sets: [], amrap: null };
 }
 
+/** Where a row of a Part sits among the EMOM minute headings of the form. */
+export interface MinuteGroup {
+  /** The minute heading the row sits under, or null when it sits under none. */
+  minute: number | null;
+  /** Whether the row is the first under that heading, so the heading goes above it. */
+  startsGroup: boolean;
+}
+
 /**
- * The EMOM minutes that hold more than one Set, which the form groups under a
- * heading of their own.
+ * How the form groups a Part's rows, given the EMOM minute of each (null for a
+ * row outside an EMOM or for rest): a minute that holds more than one Set gets
+ * a heading of its own, above the first of its rows, and its rows sit under it.
  */
-export function sharedMinutes(minutes: (number | null)[]): Set<number> {
+export function minuteGroups(minutes: (number | null)[]): MinuteGroup[] {
   const counts = new Map<number, number>();
   for (const minute of minutes) {
     if (minute !== null) {
       counts.set(minute, (counts.get(minute) ?? 0) + 1);
     }
   }
-  return new Set([...counts].filter(([, count]) => count > 1).map(([minute]) => minute));
+  return minutes.map((minute, index) => {
+    const grouped = minute !== null && (counts.get(minute) ?? 0) > 1;
+    return {
+      minute: grouped ? minute : null,
+      startsGroup: grouped && minutes[index - 1] !== minute,
+    };
+  });
 }
 
 function setKeys(

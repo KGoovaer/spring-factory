@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { currentStep, sharedMinutes, type PartSteps, type Step } from "./currentStep";
+import { currentStep, minuteGroups, type PartSteps, type Step } from "./currentStep";
 
 const set = (key: number, done = false, minute: number | null = null): Step => ({
   kind: "set",
@@ -75,8 +75,18 @@ describe("currentStep", () => {
   });
 });
 
-describe("sharedMinutes", () => {
-  it("names the EMOM minutes with more than one Set", () => {
-    expect(sharedMinutes([null, null, 1, 1, 2, 3, 3, 3])).toEqual(new Set([1, 3]));
+describe("minuteGroups", () => {
+  it("groups the rows of each EMOM minute with more than one Set under one heading", () => {
+    expect(minuteGroups([null, null, 1, 1, 2, null, 3, 3, 3])).toEqual([
+      { minute: null, startsGroup: false },
+      { minute: null, startsGroup: false },
+      { minute: 1, startsGroup: true },
+      { minute: 1, startsGroup: false },
+      { minute: null, startsGroup: false },
+      { minute: null, startsGroup: false },
+      { minute: 3, startsGroup: true },
+      { minute: 3, startsGroup: false },
+      { minute: 3, startsGroup: false },
+    ]);
   });
 });
