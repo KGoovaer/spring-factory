@@ -1,15 +1,15 @@
 import { ApiError, getJson, sendJson } from "../api/client";
-import type { PartResponse, PrescriptionResponse, ProgramResponse, Side } from "../api/programs";
+import type {
+  ExerciseResponse,
+  PartResponse,
+  PrescriptionResponse,
+  ProgramResponse,
+  Side,
+} from "../api/programs";
 import { partTitle } from "../api/programs";
 
 /** An Exercise as the form needs it: whether its Sets take a Bell, a Hold time or a Work time. */
-export interface ExerciseInfo {
-  id: string;
-  name: string;
-  bodyweight: boolean;
-  hold: boolean;
-  timed: boolean;
-}
+export type ExerciseInfo = Pick<ExerciseResponse, "id" | "name" | "bodyweight" | "hold" | "timed">;
 
 /**
  * One Set row on the form: what was planned or logged, as the starting values
