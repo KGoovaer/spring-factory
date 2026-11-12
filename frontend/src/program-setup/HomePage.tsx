@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { CsvExportLinks } from "../export/CsvExportLinks";
 import { createProgram } from "./programSetup";
 import { useSubmit } from "./useSubmit";
 
-/** The page at /: create a Program, then set it up. */
+/** The page at /: create a Program, then set it up, or export everything as CSV. */
 export function HomePage() {
   const navigate = useNavigate();
   const [name, setName] = useState("");
@@ -29,6 +30,7 @@ export function HomePage() {
           </p>
         )}
       </form>
+      <CsvExportLinks />
     </main>
   );
 }

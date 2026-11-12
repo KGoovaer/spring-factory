@@ -3,6 +3,7 @@ package be.ae.springfactory.program;
 import be.ae.springfactory.exercise.Exercise;
 import be.ae.springfactory.exercise.ExerciseCatalog;
 import be.ae.springfactory.exercise.ExerciseUsage;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -46,6 +47,18 @@ public class Programs implements ExerciseUsage {
       throw new ProgramNotFoundException(id);
     }
     return program;
+  }
+
+  /**
+   * All Programs, each with its Weeks, Sessions and Prescriptions, sorted by name ignoring case,
+   * then by id so Programs of the same name keep one order. An unmodifiable snapshot.
+   */
+  public List<Program> all() {
+    return programs.values().stream()
+        .sorted(
+            Comparator.comparing(Program::name, String.CASE_INSENSITIVE_ORDER)
+                .thenComparing(Program::id))
+        .toList();
   }
 
   /** The Session with its Prescriptions. Throws {@link SessionNotFoundException} for an unknown id. */

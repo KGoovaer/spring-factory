@@ -289,6 +289,12 @@ describe("ProgramSetupPage", () => {
 });
 
 describe("HomePage", () => {
+  it("offers the CSV export", () => {
+    renderAt("/");
+
+    expect(screen.getByRole("heading", { name: "Export to CSV" })).toBeInTheDocument();
+  });
+
   it("creates a Program and opens its setup", async () => {
     const fetch = serve({
       "POST /api/programs": [201, { id: "p1", name: "Kettlebell EMOM", weeks: [] }],
