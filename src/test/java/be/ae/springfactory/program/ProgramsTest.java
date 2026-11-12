@@ -28,6 +28,17 @@ class ProgramsTest {
   }
 
   @Test
+  void allProgramsAreListedByNameIgnoringCase() {
+    Program simple = programs.create("simple");
+    Program armour = programs.create("Armour building");
+    UUID weekId = programs.addWeek(simple.id()).id();
+
+    assertThat(programs.all()).extracting(Program::name).containsExactly("Armour building", "simple");
+    assertThat(programs.all().get(1).weeks()).extracting(Week::id).containsExactly(weekId);
+    assertThat(programs.all().get(0)).isEqualTo(armour);
+  }
+
+  @Test
   void eachProgramGetsItsOwnId() {
     assertThat(programs.create("A").id()).isNotEqualTo(programs.create("B").id());
   }

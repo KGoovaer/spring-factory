@@ -289,6 +289,17 @@ describe("ProgramSetupPage", () => {
 });
 
 describe("HomePage", () => {
+  it("offers everything planned and logged as CSV downloads", () => {
+    renderAt("/");
+
+    const planned = screen.getByRole("link", { name: "Download planned Programs" });
+    const logged = screen.getByRole("link", { name: "Download Logged Sessions" });
+    expect(planned).toHaveAttribute("href", "/api/export/planned.csv");
+    expect(planned).toHaveAttribute("download");
+    expect(logged).toHaveAttribute("href", "/api/export/logged.csv");
+    expect(logged).toHaveAttribute("download");
+  });
+
   it("creates a Program and opens its setup", async () => {
     const fetch = serve({
       "POST /api/programs": [201, { id: "p1", name: "Kettlebell EMOM", weeks: [] }],
