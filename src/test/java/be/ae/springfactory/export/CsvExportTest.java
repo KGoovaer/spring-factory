@@ -26,18 +26,18 @@ class CsvExportTest {
   private static final UUID PLANK = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c07");
   private static final UUID SKIPPING = UUID.fromString("8f1c2a4e-3b6d-4c1a-9e57-0d2b7f6a1c0c");
   private static final String PLANNED_HEADINGS =
-      "Program,Week,Session,Part,Format,Rounds,Minutes,Rotation (min),Part rest (s),Exercise,Sets,"
-          + "Reps,Reps max,Side,Hold time (s),Work time (s),Bell (kg),Rest (s),Minute";
+      "Program,Week,Session,Notes,Part,Format,Rounds,Minutes,Rotation (min),Part rest (s),"
+          + "Exercise,Sets,Reps,Reps max,Side,Hold time (s),Work time (s),Bell (kg),Rest (s),Minute";
   private static final String LOGGED_HEADINGS =
       "Program,Week,Session,Date,Session time (s),Exercise,Reps,Side,Hold time (s),Work time (s),"
           + "Bell (kg),Part,Rounds,Extra reps";
 
   /**
-   * A line of the planned CSV: these cells, then empty ones up to its 19 columns. Counts the commas
+   * A line of the planned CSV: these cells, then empty ones up to its 20 columns. Counts the commas
    * of {@code cells}, so a cell must not hold one.
    */
   private static String planned(String cells) {
-    return cells + ",".repeat(18 - (int) cells.chars().filter(c -> c == ',').count());
+    return cells + ",".repeat(19 - (int) cells.chars().filter(c -> c == ',').count());
   }
 
   private final ExerciseCatalog catalog = ExerciseCatalogs.seeded();
@@ -73,10 +73,10 @@ class CsvExportTest {
         .containsExactly(
             PLANNED_HEADINGS,
             planned("Giant,1,1"),
-            "Giant,1,2,1,Sets,,,,,Swing,5,10,12,Each,,,24.50,60,",
-            planned("Giant,1,2,2,Rest,,,,90"),
-            "Giant,1,2,3,EMOM,,10,2,,Skipping,1,1,,,,30,,,2",
-            "Giant,1,2,4,Rounds,3,,,,Plank,1,1,,,45,,,,",
+            "Giant,1,2,,1,Sets,,,,,Swing,5,10,12,Each,,,24.50,60,",
+            planned("Giant,1,2,,2,Rest,,,,90"),
+            "Giant,1,2,,3,EMOM,,10,2,,Skipping,1,1,,,,30,,,2",
+            "Giant,1,2,,4,Rounds,3,,,,Plank,1,1,,,45,,,,",
             planned("Giant,2"));
   }
 
@@ -128,7 +128,21 @@ class CsvExportTest {
             PLANNED_HEADINGS,
             planned("'-5 kg"),
             planned("\"'=HYPERLINK(\"\"x\"\")\""),
-            "\"Strength, \"\"heavy\"\"\"" + ",".repeat(18));
+            "\"Strength, \"\"heavy\"\"\"" + ",".repeat(19));
+  }
+
+  @Test
+  void theNotesOfASessionAreExportedOnEachOfItsLines() {
+    UUID programId = programs.create("Giant").id();
+    UUID sessionId = programs.addSession(programs.addWeek(programId).id()).id();
+    programs.changeNotes(sessionId, "Heavy, \"slow\"\nScale down: 16 kg");
+    programs.addPrescription(sessionId, new Prescription(SWING, 1, 10, new BigDecimal("24"), null));
+
+    assertThat(export.planned())
+        .isEqualTo(
+            PLANNED_HEADINGS
+                + "\r\nGiant,1,1,\"Heavy, \"\"slow\"\"\nScale down: 16 kg\","
+                + "1,Sets,,,,,Swing,1,10,,,,,24,,\r\n");
   }
 
   @Test

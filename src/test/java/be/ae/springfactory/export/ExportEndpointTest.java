@@ -39,8 +39,8 @@ class ExportEndpointTest {
 
     String csv = download("/api/export/planned.csv", "kettlebell-planned.csv");
 
-    assertThat(csv).startsWith("﻿Program,Week,Session,Part,Format,");
-    assertThat(csv).contains("\r\n" + name + ",1,1,1,Sets,,,,,Swing,10,10,,,,,24,,\r\n");
+    assertThat(csv).startsWith("﻿Program,Week,Session,Notes,Part,Format,");
+    assertThat(csv).contains("\r\n" + name + ",1,1,,1,Sets,,,,,Swing,10,10,,,,,24,,\r\n");
   }
 
   @Test

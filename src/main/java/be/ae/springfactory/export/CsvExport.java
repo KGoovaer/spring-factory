@@ -41,6 +41,7 @@ public class CsvExport {
           "Program",
           "Week",
           "Session",
+          "Notes",
           "Part",
           "Format",
           "Rounds",
@@ -86,10 +87,10 @@ public class CsvExport {
   }
 
   /**
-   * Every planned Prescription, one line each, under the Program, Week, Session and Part it is in.
-   * A Part without Prescriptions (such as rest), a Session without Parts, a Week without Sessions
-   * and a Program without Weeks get one line of their own, with the cells below them empty, so
-   * nothing planned is missing.
+   * Every planned Prescription, one line each, under the Program, Week, Session (with its notes)
+   * and Part it is in. A Part without Prescriptions (such as rest), a Session without Parts, a Week
+   * without Sessions and a Program without Weeks get one line of their own, with the cells below
+   * them empty, so nothing planned is missing.
    */
   public String planned() {
     Map<UUID, String> names = exerciseNames();
@@ -104,7 +105,8 @@ public class CsvExport {
         }
         for (int s = 0; s < week.sessions().size(); s++) {
           Session session = week.sessions().get(s);
-          List<Object> sessionCells = List.of(program.name(), week.number(), s + 1);
+          List<Object> sessionCells =
+              Arrays.asList(program.name(), week.number(), s + 1, session.notes());
           if (session.parts().isEmpty()) {
             csv.line(sessionCells);
           }
